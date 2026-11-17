@@ -228,7 +228,11 @@ def main():
         envelope = {"ok": True, "value": agent.to_json(value)}
     except BaseException as error:
         envelope = {"ok": False, "error": agent.to_error(error)}
+    # fd 4 in the socket transport; fd 1 in the stdio fallback.
     os.write(4, (json.dumps(envelope) + "\n").encode())
+    # The bridge reader thread is blocked on the other fd. Exit hard so it
+    # cannot survive interpreter finalization.
+    os._exit(0)
 
 main()
 ```

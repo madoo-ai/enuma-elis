@@ -104,3 +104,19 @@ multiplexes by `id`. Calls above the limit queue in the host.
 | final result | 1 MiB |
 
 `task` raises the wall clock and the child-call budget; it has its own limits.
+
+## Transport fallback
+
+The production transport is fd 3 (duplex) plus fd 4 (final envelope). When the
+host cannot pass extra file descriptors, it uses stdio:
+
+- fd 0: host → SDK, same message stream.
+- fd 1: SDK → host, same message stream plus `{"type":"final",...}`.
+- fd 2: logs.
+- The harness creates `Client` before redirecting `sys.stdout`, then runs the
+  program with `redirect_stdout(sys.stderr)`.
+- After writing the final line, the harness calls `os._exit(0)`. The reader
+  thread is blocked on stdin and must not survive interpreter finalization.
+
+The Phase 0 fork adapter uses this fallback because its process helper exposes
+only stdin/stdout/stderr. The message shapes are identical.

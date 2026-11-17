@@ -7,7 +7,22 @@ tools through a typed module tree. The host runs the program in `bwrap`, mediate
 every tool call through the fork's permission and goal-gate path, and returns one
 result.
 
-Status: **skeleton**. The design lives in [`python-code-mode-plan.md`](python-code-mode-plan.md).
+Status: **Phase 0** — fd 3 client and handshake, typed `fs.read`, fake-host and
+stdio tests, and a read-only fork adapter over the stdio transport. The runtime
+volume and the rest of the tool catalog are next.
+
+What works now:
+
+- `agent.Client` — handshake, call multiplexing, timeouts, audit emitter, socket
+  and stdio transports.
+- `agent.fs.read` — typed `Text` / `Image` / `Directory` results.
+- `tests/fake_host.py` — a Python host over a socketpair; no fork needed.
+- `tests/test_stdio.py` — the real stdio path the fork adapter uses.
+- Fork adapter at `me-when-agents/packages/opencode/src/tool/python/` — `python`
+  tool, bwrap command builder, stdio bridge, `fs.read` dispatch, and tests.
+
+Not yet: the runtime volume, `mutate`/`shell`/`web`/`state`, the tool manifest
+generator, audit-hook wiring in the sandbox, and snapshot diffing.
 
 ## Layout
 
