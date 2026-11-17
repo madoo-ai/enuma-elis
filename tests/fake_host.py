@@ -27,6 +27,16 @@ class FakeHost:
 
         self.handlers: dict[str, Handler] = {
             "fs.read": self.read,
+            "fs.glob": self.glob,
+            "fs.grep": self.grep,
+            "mutate.edit": self.edit,
+            "mutate.write": self.write,
+            "mutate.patch": self.patch,
+            "shell.run": self.shell,
+            "web.fetch": self.fetch,
+            "web.search": self.search,
+            "state.skills.load": self.skill,
+            "state.todos.write": self.todos,
             "test.echo": lambda payload: payload,
             "test.fail": self.fail,
             "test.sleep": self.sleep,
@@ -138,6 +148,77 @@ class FakeHost:
             "lines": 1,
             "truncated": False,
         }
+
+    def glob(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "entries": [{"path": "src/a.py", "type": "file"}],
+            "truncated": False,
+        }
+
+    def grep(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "matches": [{"path": "src/a.py", "line": 3, "text": "TODO"}],
+            "truncated": False,
+        }
+
+    def edit(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "file": payload.get("path", "?"),
+            "replacements": 1,
+            "additions": 1,
+            "deletions": 1,
+            "patch": "--- a\n+++ b",
+        }
+
+    def write(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "file": payload.get("path", "?"),
+            "bytes": len(str(payload.get("content", ""))),
+            "created": True,
+        }
+
+    def patch(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"files": ["src/a.py"], "diff": "--- a\n+++ b"}
+
+    def shell(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if payload.get("command") == "false":
+            return {
+                "exit": 1,
+                "stdout": "",
+                "stderr": "failed\n",
+                "output": "failed\n",
+                "truncated": False,
+                "timed_out": False,
+            }
+        return {
+            "exit": 0,
+            "stdout": "ok\n",
+            "stderr": "",
+            "output": "ok\n",
+            "truncated": False,
+            "timed_out": False,
+        }
+
+    def fetch(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "url": payload.get("url", ""),
+            "text": "page",
+            "title": "title",
+            "truncated": False,
+        }
+
+    def search(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"query": payload.get("query", ""), "text": "results", "provider": "exa"}
+
+    def skill(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "name": payload.get("name", ""),
+            "directory": "/skills/example",
+            "content": "# Skill\nDo the thing.",
+        }
+
+    def todos(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {"todos": payload.get("todos", [])}
 
     def fail(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"__error__": {"kind": "permission_denied", "message": "nope"}}

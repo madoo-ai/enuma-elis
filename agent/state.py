@@ -1,11 +1,29 @@
-"""Session state tools.
+"""Session state: skills and todos."""
 
-Public surface, generated from ``tool-manifest.json``::
+from __future__ import annotations
 
-    state.skills.load(name) -> Skill
-    state.todos.write(items) -> None
+import dataclasses
+from typing import Any
 
-TODO: generate the typed implementations from the manifest.
-"""
+from . import current_client
+from ._types import Skill, Todo, parse_skill, parse_todos
 
-__all__: list[str] = []
+
+class _Skills:
+    def load(self, name: str) -> Skill:
+        return parse_skill(current_client().call("state.skills.load", {"name": name}))
+
+
+class _Todos:
+    def write(self, todos: list[Todo] | list[dict[str, Any]]) -> tuple[Todo, ...]:
+        items = [
+            item if isinstance(item, dict) else dataclasses.asdict(item)
+            for item in todos
+        ]
+        return parse_todos(current_client().call("state.todos.write", {"todos": items}))
+
+
+skills = _Skills()
+todos = _Todos()
+
+__all__ = ["skills", "todos"]

@@ -7,22 +7,28 @@ tools through a typed module tree. The host runs the program in `bwrap`, mediate
 every tool call through the fork's permission and goal-gate path, and returns one
 result.
 
-Status: **Phase 0** — fd 3 client and handshake, typed `fs.read`, fake-host and
-stdio tests, and a read-only fork adapter over the stdio transport. The runtime
-volume and the rest of the tool catalog are next.
+Status: **Phase 1 in progress** — the v1 Python modules, the fork catalog with
+V1 adapters, top-level `toolset` and `python.modules` gating, snapshot diffing,
+and audit summary are implemented. Tool-manifest generation and the experiment
+run are next.
 
 What works now:
 
 - `agent.Client` — handshake, call multiplexing, timeouts, audit emitter, socket
   and stdio transports.
-- `agent.fs.read` — typed `Text` / `Image` / `Directory` results.
+- `agent.fs` — typed `read`, `glob`, `grep`.
+- `agent.mutate` — typed `edit`, `write`, `patch`.
+- `agent.shell` — typed `run` with `workdir`, timeout, and `check`.
+- `agent.web` — typed `fetch` and `search`.
+- `agent.state` — `skills.load` and `todos.write`.
 - `tests/fake_host.py` — a Python host over a socketpair; no fork needed.
 - `tests/test_stdio.py` — the real stdio path the fork adapter uses.
 - Fork adapter at `me-when-agents/packages/opencode/src/tool/python/` — `python`
-  tool, bwrap command builder, stdio bridge, `fs.read` dispatch, and tests.
+  tool, bwrap command builder, stdio bridge, full v1 catalog, `toolset` and
+  `python.modules` gating, snapshot diff, audit summary, and tests.
 
-Not yet: the runtime volume, `mutate`/`shell`/`web`/`state`, the tool manifest
-generator, audit-hook wiring in the sandbox, and snapshot diffing.
+Not yet: the runtime volume build, the generated tool manifest, the experiment
+arms, and the MCP/plugin surface.
 
 ## Layout
 

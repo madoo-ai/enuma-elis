@@ -1,6 +1,7 @@
 # Python code mode: build plan
 
 Status: accepted design, build plan.
+Progress: Phase 0 and the Phase 1 tool set, catalog, gating, snapshot diff, and audit summary are implemented. The runtime volume, generated manifest, and experiment arms remain.
 Scope: a separate Python runtime/SDK repository and the adapter inside the manica-dei/opencode fork.
 
 ## 0. Decisions
@@ -550,7 +551,7 @@ Adding `python` does not remove `bash`, `read`, `edit`, or `grep`. The model wil
 
 Split **visibility** from **authority**:
 
-- add a per-agent `tools` allow-list for the top-level catalog;
+- add a per-agent `toolset` allow-list for the top-level catalog;
 - add a per-agent `python.modules` allow-list for the SDK module tree;
 - leave the execution permissions unchanged (`read`, `edit`, `bash` stay `allow`).
 
@@ -561,7 +562,7 @@ Split **visibility** from **authority**:
       "description": "Python code-mode experiment",
       "mode": "primary",
       "model": "litellm/hephaestus",
-      "tools": ["python", "goal", "question"],
+      "toolset": ["python", "goal", "question"],
       "python": {
         "modules": ["fs", "mutate", "web", "state"]
       },
@@ -575,16 +576,16 @@ Split **visibility** from **authority**:
 }
 ```
 
-- `tools` is the entire top-level catalog. Anything not listed is not advertised. `Permission.disabled` still runs, so a denied tool stays hidden.
-- `python.modules` is the SDK tree. `shell` absent means no `agent.shell`; the top-level `bash` is absent because it is not in `tools`.
-- The execution permission for `mutate.edit` remains `edit: allow`; the top-level `edit` tool is absent because it is not in `tools`. The module works; the tool does not.
+- `toolset` is the entire top-level catalog. Anything not listed is not advertised. `Permission.disabled` still runs, so a denied tool stays hidden.
+- `python.modules` is the SDK tree. `shell` absent means no `agent.shell`; the top-level `bash` is absent because it is not in `toolset`.
+- The execution permission for `mutate.edit` remains `edit: allow`; the top-level `edit` tool is absent because it is not in `toolset`. The module works; the tool does not.
 - The `python` description is generated from `python.modules`, so the model does not see modules it cannot call.
 - The handshake sends the available module methods. A call to an absent module returns `unavailable`; the SDK raises rather than silently running.
 - MCP and custom tools are excluded twice: the experiment template configures no MCP servers and no plugins, and `python` is native-only.
 
 Implementation points:
 
-- Add `tools?: string[]` to `Agent.Info` and to the agent config schema.
+- Add `toolset?: string[]` to `Agent.Info` and to the agent config schema. Do not reuse the deprecated `tools` boolean map.
 - Apply it in `ToolRegistry.tools` (or `SessionTools.resolve`), next to the existing model/provider filters. The final gate in `session/llm/request.ts:resolveTools` should also intersect with it.
 - Add `python?: { modules?: string[] }` to `Agent.Info`; `catalog.ts` builds `RuntimeTool[]` from that list.
 - For a temporary experiment, an env flag `OPENCODE_EXPERIMENT_TOOLSET=python-only` can hard-code the allow-list before the config field lands. Remove it once the config field exists.
@@ -629,7 +630,7 @@ Run 0 and B first. 0 gives the baseline; B gives the treatment. A isolates the s
 Protocol spec, fake host, `agent.Client`, `fs.read` typed, bwrap launcher, `python` tool hello/exit. No writes.
 
 **Phase 1 — v1 tool set.**
-`fs` (read/glob/grep), `mutate` (edit/write/patch), `shell`, `web`, `state`. Tool manifest generation, V1 output adapters, audit hook, snapshot diff. Add the top-level `tools` allow-list and `python.modules` gating; run experiment 0 and B.
+`fs` (read/glob/grep), `mutate` (edit/write/patch), `shell`, `web`, `state`. Tool manifest generation, V1 output adapters, audit hook, snapshot diff. Add the top-level `toolset` allow-list and `python.modules` gating; run experiment 0 and B.
 
 **Phase 2 — experiment and `task`.**
 Run 0/A/B/C. Add `task` with `TaskResult` transcript export, task-call budget, and longer timeout. Tune concurrency and truncation.
@@ -677,8 +678,8 @@ MCP and plugin/custom tools. Not in v1.
 | Runtime/binary protocol drift | Manifest hash + handshake; fail closed |
 | Secrets in the child env | `--clearenv` + whitelist; never a denylist |
 | Goal gate is advisory with rw workspace | Refuse `python` during scoping; ro workspace for the scoping arm |
-| Top-level toolset leaks (`bash` still callable) | `tools` allow-list + a test that asserts the advertised names; log the catalog per turn |
-| Denying an execution permission hides the Python module | Gate visibility with `tools`/`python.modules`, not with `deny` rules |
+| Top-level toolset leaks (`bash` still callable) | `toolset` allow-list + a test that asserts the advertised names; log the catalog per turn |
+| Denying an execution permission hides the Python module | Gate visibility with `toolset`/`python.modules`, not with `deny` rules |
 | Audit hook bypass via `ctypes` | Snapshot diff as the backstop; mount flags for enforcement |
 | Task cost and timeout | Task-call budget, per-task timeout, child step cap, transcript export |
 | Toolchain caches cold under `HOME=/tmp/home` | Set `GOCACHE`/`GOMODCACHE` or bind caches rw; document the choice |

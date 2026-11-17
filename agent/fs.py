@@ -1,15 +1,11 @@
-"""Read-only filesystem tools.
-
-Phase 0 implements ``read``. ``glob`` and ``grep`` land with the manifest
-generator; their signatures are documented in ``python-tool-library.md``.
-"""
+"""Read-only filesystem tools: read, glob, grep."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from . import current_client
-from ._types import ReadResult, parse_read
+from ._types import GlobResult, GrepResult, ReadResult, parse_glob, parse_grep, parse_read
 
 
 def read(path: str, offset: int | None = None, limit: int | None = None) -> ReadResult:
@@ -23,4 +19,33 @@ def read(path: str, offset: int | None = None, limit: int | None = None) -> Read
     return parse_read(current_client().call("fs.read", payload))
 
 
-__all__ = ["read"]
+def glob(pattern: str, path: str | None = None, limit: int | None = None) -> GlobResult:
+    """Find files by glob pattern within the workspace."""
+
+    payload: dict[str, Any] = {"pattern": pattern}
+    if path is not None:
+        payload["path"] = path
+    if limit is not None:
+        payload["limit"] = limit
+    return parse_glob(current_client().call("fs.glob", payload))
+
+
+def grep(
+    pattern: str,
+    path: str | None = None,
+    include: str | None = None,
+    limit: int | None = None,
+) -> GrepResult:
+    """Search file contents by regular expression."""
+
+    payload: dict[str, Any] = {"pattern": pattern}
+    if path is not None:
+        payload["path"] = path
+    if include is not None:
+        payload["include"] = include
+    if limit is not None:
+        payload["limit"] = limit
+    return parse_grep(current_client().call("fs.grep", payload))
+
+
+__all__ = ["read", "glob", "grep"]

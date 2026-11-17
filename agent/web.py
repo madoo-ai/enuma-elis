@@ -1,13 +1,41 @@
-"""Network tools.
+"""Network tools: fetch and search."""
 
-Public surface, generated from ``tool-manifest.json``::
+from __future__ import annotations
 
-    web.fetch(url, format="markdown", timeout=None) -> FetchResult
-    web.search(query, num_results=None, livecrawl=None) -> SearchResult
+from typing import Any
 
-Both go through the host so the call is permission-checked and truncated.
+from . import current_client
+from ._types import FetchResult, SearchResult, parse_fetch, parse_search
 
-TODO: generate the typed implementations from the manifest.
-"""
 
-__all__: list[str] = []
+def fetch(url: str, format: str = "markdown", timeout: int | None = None) -> FetchResult:
+    """Fetch one http(s) URL through the host."""
+
+    payload: dict[str, Any] = {"url": url, "format": format}
+    if timeout is not None:
+        payload["timeout"] = timeout
+    return parse_fetch(current_client().call("web.fetch", payload))
+
+
+def search(
+    query: str,
+    num_results: int | None = None,
+    livecrawl: str | None = None,
+    search_type: str | None = None,
+    context_max_characters: int | None = None,
+) -> SearchResult:
+    """Search the web through the host's configured provider."""
+
+    payload: dict[str, Any] = {"query": query}
+    if num_results is not None:
+        payload["num_results"] = num_results
+    if livecrawl is not None:
+        payload["livecrawl"] = livecrawl
+    if search_type is not None:
+        payload["type"] = search_type
+    if context_max_characters is not None:
+        payload["context_max_characters"] = context_max_characters
+    return parse_search(current_client().call("web.search", payload))
+
+
+__all__ = ["fetch", "search"]

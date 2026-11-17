@@ -1,14 +1,32 @@
-"""Filesystem mutation tools.
+"""Filesystem mutation tools: edit, write, patch."""
 
-Public surface, generated from ``tool-manifest.json``::
+from __future__ import annotations
 
-    mutate.edit(path, old, new, replace_all=False) -> EditResult
-    mutate.write(path, content) -> WriteResult
-    mutate.patch(text) -> PatchResult
+from typing import Any
 
-Every call uses the fork's ``edit`` permission and returns the diff it applied.
+from . import current_client
+from ._types import EditResult, PatchResult, WriteResult, parse_edit, parse_patch, parse_write
 
-TODO: generate the typed implementations from the manifest.
-"""
 
-__all__: list[str] = []
+def edit(path: str, old: str, new: str, replace_all: bool = False) -> EditResult:
+    """Replace exact text in one file and return the applied diff."""
+
+    payload: dict[str, Any] = {"path": path, "old": old, "new": new}
+    if replace_all:
+        payload["replace_all"] = True
+    return parse_edit(current_client().call("mutate.edit", payload))
+
+
+def write(path: str, content: str) -> WriteResult:
+    """Write one file, creating it when absent."""
+
+    return parse_write(current_client().call("mutate.write", {"path": path, "content": content}))
+
+
+def patch(text: str) -> PatchResult:
+    """Apply a patch document and return the changed files."""
+
+    return parse_patch(current_client().call("mutate.patch", {"text": text}))
+
+
+__all__ = ["edit", "write", "patch"]
