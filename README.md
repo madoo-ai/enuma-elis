@@ -25,10 +25,11 @@ What works now:
 - `tests/test_stdio.py` — the real stdio path the fork adapter uses.
 - Fork adapter at `me-when-agents/packages/opencode/src/tool/python/` — `python`
   tool, bwrap command builder, stdio bridge, full v1 catalog, `toolset` and
-  `python.modules` gating, snapshot diff, audit summary, and tests.
+  `python.modules` gating, model/provider filtering, a generated catalog
+  description, `tool-manifest` export, snapshot diff, audit summary, and tests.
 
-Not yet: the runtime volume build, the generated tool manifest, the experiment
-arms, and the MCP/plugin surface.
+Not yet: the runtime volume build, the experiment arms, full input/output
+schemas in the manifest, and the MCP/plugin surface.
 
 ## Layout
 

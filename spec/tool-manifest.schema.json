@@ -17,7 +17,7 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["name", "tool", "module", "permission", "input", "output"],
+        "required": ["name", "tool", "module", "permission"],
         "properties": {
           "name": {
             "type": "string",
