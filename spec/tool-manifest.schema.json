@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://enuma-elis.dev/spec/tool-manifest.schema.json",
+  "title": "enuma-elis tool manifest",
+  "type": "object",
+  "required": ["protocol", "fork", "tools"],
+  "properties": {
+    "protocol": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fork": {
+      "type": "string",
+      "description": "The fork release the manifest was exported from."
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "tool", "module", "permission", "input", "output"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+            "description": "Fully qualified SDK name, for example fs.read."
+          },
+          "tool": {
+            "type": "string",
+            "description": "The fork's tool id, for example read."
+          },
+          "module": {
+            "type": "string",
+            "description": "The SDK module, for example fs."
+          },
+          "permission": {
+            "type": "string",
+            "description": "The fork permission action used for execution."
+          },
+          "input": {
+            "type": "object",
+            "description": "JSON Schema for the input."
+          },
+          "output": {
+            "type": "object",
+            "description": "JSON Schema for the typed output."
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

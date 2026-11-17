@@ -1,0 +1,21 @@
+# Test fixture: the manica-dei/opencode fork checkout.
+me-when-agents/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+
+# Runtime artifacts
+runtime/build/
+runtime/releases/
+runtime/dist/
+
+# OS
+.DS_Store

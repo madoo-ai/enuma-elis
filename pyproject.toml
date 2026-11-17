@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "enuma-elis"
+version = "0.0.0"
+description = "Python code mode for the manica-dei/opencode fork"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "enuma-elis contributors" }]
+
+[project.optional-dependencies]
+dev = ["ruff", "pyright"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["agent"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.pyright]
+include = ["agent", "tests"]
+pythonVersion = "3.11"
