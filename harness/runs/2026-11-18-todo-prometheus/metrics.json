@@ -1,0 +1,53 @@
+{
+  "session": "ses_e1247e859ffeEyOKBkCl7OOD05",
+  "title": "Single-file localStorage to-do app",
+  "model": "litellm/prometheus",
+  "agent": "python-experiment",
+  "toolset": ["python"],
+  "wallClockMinutes": 1.1,
+  "steps": 13,
+  "pythonToolCalls": 12,
+  "childCalls": 64,
+  "childTools": {
+    "shell.run": 57,
+    "fs.read": 4,
+    "fs.glob": 2,
+    "mutate.write": 1
+  },
+  "childToolTimeMs": 8900,
+  "maxChildToolTimeMs": 889,
+  "tokens": {
+    "input": 6907,
+    "output": 4094,
+    "reasoning": 1819,
+    "cacheRead": 84224,
+    "cacheWrite": 0
+  },
+  "cost": 0,
+  "programErrors": 1,
+  "audit": {
+    "rawOpen": 0,
+    "rawExec": 0,
+    "rawNet": 0
+  },
+  "browserActions": {
+    "get": 16,
+    "eval": 8,
+    "click": 6,
+    "fill": 5,
+    "reload": 3,
+    "is": 3,
+    "open": 1,
+    "check": 1,
+    "press": 1,
+    "close": 1
+  },
+  "workspace": {
+    "files": ["README.md", "sample.txt", "index.html"],
+    "indexHtml": {
+      "bytes": 5355,
+      "lines": 203,
+      "sha256": "04446515196b29d4d2aaf204c85808901818adf50ccc142202a47da3ba89fa24"
+    }
+  }
+}

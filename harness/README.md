@@ -87,6 +87,9 @@ curl -s http://127.0.0.1:4096/global/health
 
 ## First real run
 
+The full dump and analysis are in
+[`runs/2026-11-18-todo-prometheus/`](runs/2026-11-18-todo-prometheus/analysis.md).
+
 Prompt: build a small to-do app, one HTML file, add/complete/delete, persisted
 in localStorage.
 
