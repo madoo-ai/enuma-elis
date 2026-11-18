@@ -8,6 +8,10 @@ id,category,label,python_call_count,python_ok_count,python_failed_count,python_r
 2026-11-18-unbounded-prometheus,capability,2026-11-18-unbounded-prometheus,1,1,0,False,1.0,3,0,1,0,0,7.6,1742,276,530,,0,False,False,False,False
 2026-11-18-vision-prometheus,capability,2026-11-18-vision-prometheus,2,1,1,True,0.5,3,0,0,0,1,33.5,2234,532,245,,0,False,False,False,False
 0-20261119T013043,arm,arm-0,0,0,0,False,,0,0,0,0,0,15.0,10142,426,844,,0,True,False,True,False
+0-20261119T040239,arm,arm-0,0,0,0,False,,0,0,0,0,0,9.2,9863,413,794,,0,False,False,False,False
+0-20261119T050432,arm,arm-0,0,0,0,False,,0,0,0,0,0,10.7,758,368,418,,0,True,False,False,False
+0-20261119T051103,arm,arm-0,0,0,0,False,,0,0,0,0,0,8.9,9828,208,622,,0,False,False,False,False
+0-20261119T052116,arm,arm-0,0,0,0,False,,0,0,0,0,0,189.7,16769,4785,5513,,0,True,False,True,False
 A-20261119T020147,arm,arm-A,22,20,2,True,0.9090909090909091,32,0,0,0,2,157.9,5346,7866,12032,,1,True,False,True,False
 B-20261118T154723,arm,arm-B,15,12,3,True,0.8,0,6,17,0,3,132.6,9932,11102,7939,,1,True,False,True,False
 B-20261118T155413,arm,arm-B,10,7,3,True,0.7,9,0,0,0,3,41.1,3436,3853,913,,1,True,False,True,True

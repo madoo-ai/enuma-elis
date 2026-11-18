@@ -2646,6 +2646,366 @@
     "final_text": "Workspace is empty of app code (a harness README and a sample file), no AGENTS.md, Node 22 and Chrome for Testing available. I can verify end-to-end by driving headless Chrome over CDP, so the contract's check will be a real browser run, not a file grep.\n\n"
   },
   {
+    "id": "0-20261119T040239",
+    "path": "harness/runs/arms/0-20261119T040239",
+    "category": "arm",
+    "label": "arm-0",
+    "arm": "0",
+    "capability": [],
+    "config": {
+      "agent": "build",
+      "python": false,
+      "modules": [],
+      "sandbox": "bwrap",
+      "workspace": "rw",
+      "network": true,
+      "block_raw_exec": false
+    },
+    "prompt": "\"Build a small to-do app in the current workspace. Keep it to one HTML file with add, complete, and delete, persisted in localStorage. Use the available tools and read the file back to verify.\"",
+    "metrics": {
+      "source": "session.json",
+      "steps": 3,
+      "tools": {
+        "bash": 6,
+        "goal": 1
+      },
+      "childTools": {},
+      "tokens": {
+        "input": 9863,
+        "output": 413,
+        "reasoning": 794,
+        "cacheRead": 19712
+      },
+      "cost": 0.0,
+      "errors": 0,
+      "audit": {},
+      "filesChanged": [],
+      "durationSeconds": 9.2,
+      "finalText": "",
+      "workspace": [
+        {
+          "path": ".opencode/scratchpads/1795035775140-calm-river.md",
+          "bytes": 1102
+        },
+        {
+          "path": "README.md",
+          "bytes": 49
+        },
+        {
+          "path": "sample.txt",
+          "bytes": 24
+        }
+      ]
+    },
+    "session_title": "Single-file localStorage to-do app build",
+    "session_tokens": {
+      "input": 9863,
+      "output": 413,
+      "reasoning": 794,
+      "cache": {
+        "read": 19712,
+        "write": 0
+      }
+    },
+    "python_calls": [],
+    "python_call_count": 0,
+    "python_ok_count": 0,
+    "python_failed_count": 0,
+    "python_recovery": false,
+    "python_success_rate": null,
+    "direct_tools": {
+      "bash": 6
+    },
+    "child_tools": {},
+    "child_status": {},
+    "child_duration_ms_total": 0,
+    "child_duration_ms_by_tool": {},
+    "program_tags": {},
+    "error_kinds": {},
+    "tool_module_usage": {},
+    "verification_words": {
+      "verified": false,
+      "read_back": false,
+      "limitation": false,
+      "browser_check": false,
+      "static_check": false
+    },
+    "final_text": ""
+  },
+  {
+    "id": "0-20261119T050432",
+    "path": "harness/runs/arms/0-20261119T050432",
+    "category": "arm",
+    "label": "arm-0",
+    "arm": "0",
+    "capability": [],
+    "config": {
+      "agent": "build",
+      "python": false,
+      "modules": [],
+      "sandbox": "bwrap",
+      "workspace": "rw",
+      "network": true,
+      "block_raw_exec": false
+    },
+    "prompt": "\"Create hello.html containing only `<h1>hello</h1>`. Read the file back to verify.\"",
+    "metrics": {
+      "source": "session.json",
+      "steps": 6,
+      "tools": {
+        "bash": 2,
+        "glob": 1,
+        "read": 2,
+        "write": 1
+      },
+      "childTools": {},
+      "tokens": {
+        "input": 758,
+        "output": 368,
+        "reasoning": 418,
+        "cacheRead": 60160
+      },
+      "cost": 0.0,
+      "errors": 0,
+      "audit": {},
+      "filesChanged": [],
+      "durationSeconds": 10.7,
+      "finalText": "Created `hello.html` and read it back.\n\n- Content: `<h1>hello</h1>` (14 bytes, no trailing newline)\n- Verified via `read` and `od -c`: exactly the requested markup, nothing else.",
+      "workspace": [
+        {
+          "path": "README.md",
+          "bytes": 49
+        },
+        {
+          "path": "hello.html",
+          "bytes": 14
+        },
+        {
+          "path": "sample.txt",
+          "bytes": 24
+        }
+      ]
+    },
+    "session_title": "Create and verify hello.html",
+    "session_tokens": {
+      "input": 758,
+      "output": 368,
+      "reasoning": 418,
+      "cache": {
+        "read": 60160,
+        "write": 0
+      }
+    },
+    "python_calls": [],
+    "python_call_count": 0,
+    "python_ok_count": 0,
+    "python_failed_count": 0,
+    "python_recovery": false,
+    "python_success_rate": null,
+    "direct_tools": {
+      "glob": 1,
+      "bash": 2,
+      "read": 2,
+      "write": 1
+    },
+    "child_tools": {},
+    "child_status": {},
+    "child_duration_ms_total": 0,
+    "child_duration_ms_by_tool": {},
+    "program_tags": {},
+    "error_kinds": {},
+    "tool_module_usage": {},
+    "verification_words": {
+      "verified": true,
+      "read_back": false,
+      "limitation": false,
+      "browser_check": false,
+      "static_check": false
+    },
+    "final_text": "Created `hello.html` and read it back.\n\n- Content: `<h1>hello</h1>` (14 bytes, no trailing newline)\n- Verified via `read` and `od -c`: exactly the requested markup, nothing else."
+  },
+  {
+    "id": "0-20261119T051103",
+    "path": "harness/runs/arms/0-20261119T051103",
+    "category": "arm",
+    "label": "arm-0",
+    "arm": "0",
+    "capability": [],
+    "config": {
+      "agent": "build",
+      "python": false,
+      "modules": [],
+      "sandbox": "bwrap",
+      "workspace": "rw",
+      "network": true,
+      "block_raw_exec": false
+    },
+    "prompt": "\"Build a small to-do app in the current workspace. Keep it to one HTML file with add, complete, and delete, persisted in localStorage. Use the available tools and read the file back to verify.\"",
+    "metrics": {
+      "source": "session.json",
+      "steps": 3,
+      "tools": {
+        "bash": 3,
+        "glob": 1,
+        "goal": 1
+      },
+      "childTools": {},
+      "tokens": {
+        "input": 9828,
+        "output": 208,
+        "reasoning": 622,
+        "cacheRead": 19328
+      },
+      "cost": 0.0,
+      "errors": 0,
+      "audit": {},
+      "filesChanged": [],
+      "durationSeconds": 8.9,
+      "finalText": "",
+      "workspace": [
+        {
+          "path": ".opencode/scratchpads/1795039887953-nimble-garden.md",
+          "bytes": 1606
+        },
+        {
+          "path": "README.md",
+          "bytes": 49
+        },
+        {
+          "path": "sample.txt",
+          "bytes": 24
+        }
+      ]
+    },
+    "session_title": "Single-file to-do app with localStorage",
+    "session_tokens": {
+      "input": 9828,
+      "output": 208,
+      "reasoning": 622,
+      "cache": {
+        "read": 19328,
+        "write": 0
+      }
+    },
+    "python_calls": [],
+    "python_call_count": 0,
+    "python_ok_count": 0,
+    "python_failed_count": 0,
+    "python_recovery": false,
+    "python_success_rate": null,
+    "direct_tools": {
+      "glob": 1,
+      "bash": 3
+    },
+    "child_tools": {},
+    "child_status": {},
+    "child_duration_ms_total": 0,
+    "child_duration_ms_by_tool": {},
+    "program_tags": {},
+    "error_kinds": {},
+    "tool_module_usage": {},
+    "verification_words": {
+      "verified": false,
+      "read_back": false,
+      "limitation": false,
+      "browser_check": false,
+      "static_check": false
+    },
+    "final_text": ""
+  },
+  {
+    "id": "0-20261119T052116",
+    "path": "harness/runs/arms/0-20261119T052116",
+    "category": "arm",
+    "label": "arm-0",
+    "arm": "0",
+    "capability": [],
+    "config": {
+      "agent": "build",
+      "python": false,
+      "modules": [],
+      "sandbox": "bwrap",
+      "workspace": "rw",
+      "network": true,
+      "block_raw_exec": false
+    },
+    "prompt": "\"Build a small to-do app in the current workspace. Keep it to one HTML file with add, complete, and delete, persisted in localStorage. Use the available tools and read the file back to verify.\"",
+    "metrics": {
+      "source": "session.json",
+      "steps": 20,
+      "tools": {
+        "bash": 16,
+        "glob": 1,
+        "read": 4,
+        "write": 1
+      },
+      "childTools": {},
+      "tokens": {
+        "input": 16769,
+        "output": 4785,
+        "reasoning": 5513,
+        "cacheRead": 344448
+      },
+      "cost": 0.0,
+      "errors": 0,
+      "audit": {},
+      "filesChanged": [],
+      "durationSeconds": 189.7,
+      "finalText": "Built `index.html` \u2014 a single self-contained file, no external assets.\n\n**What it does**\n- Add tasks via the form (trims input, ignores blank entries)\n- Complete tasks via checkbox (strikethrough + \"done\" styling)\n- Delete via per-row button\n- Persists to `localStorage` under `todo.items.v1`, reloads safely on init (guards malformed/missing data)\n- Empty state and \"N of M done\" counter; light/dark via `prefers-color-scheme`\n\n**Verification**\n- Read the file back after writing (`index.html:1-287`).\n- Drove the app in Chromium end to end: add two items \u2192 complete one \u2192 assert DOM, counter, and stored JSON; reload \u2192 assert both items and completed state survived; delete \u2192 reload \u2192 assert deletion persisted; delete the last item \u2192 assert empty state and `[]` in storage. All assertions passed.\n- Screenshot check confirmed layout and completed styling render correctly.\n\nOnly `index.html` was added to the workspace.",
+      "workspace": [
+        {
+          "path": "README.md",
+          "bytes": 49
+        },
+        {
+          "path": "index.html",
+          "bytes": 6230
+        },
+        {
+          "path": "sample.txt",
+          "bytes": 24
+        }
+      ]
+    },
+    "session_title": "Single-file to-do app with localStorage",
+    "session_tokens": {
+      "input": 16769,
+      "output": 4785,
+      "reasoning": 5513,
+      "cache": {
+        "read": 344448,
+        "write": 0
+      }
+    },
+    "python_calls": [],
+    "python_call_count": 0,
+    "python_ok_count": 0,
+    "python_failed_count": 0,
+    "python_recovery": false,
+    "python_success_rate": null,
+    "direct_tools": {
+      "bash": 16,
+      "glob": 1,
+      "read": 4,
+      "write": 1
+    },
+    "child_tools": {},
+    "child_status": {},
+    "child_duration_ms_total": 0,
+    "child_duration_ms_by_tool": {},
+    "program_tags": {},
+    "error_kinds": {},
+    "tool_module_usage": {},
+    "verification_words": {
+      "verified": true,
+      "read_back": true,
+      "limitation": false,
+      "browser_check": true,
+      "static_check": false
+    },
+    "final_text": "Built `index.html` \u2014 a single self-contained file, no external assets.\n\n**What it does**\n- Add tasks via the form (trims input, ignores blank entries)\n- Complete tasks via checkbox (strikethrough + \"done\" styling)\n- Delete via per-row button\n- Persists to `localStorage` under `todo.items.v1`, reloads safely on init (guards malformed/missing data)\n- Empty state and \"N of M done\" counter; light/dark via `prefers-color-scheme`\n\n**Verification**\n- Read the file back after writing (`index.html:1-287`).\n- Drove the app in Chromium end to end: add two items \u2192 complete one \u2192 assert DOM, counter, and stored JSON; reload \u2192 assert both items and completed state survived; delete \u2192 reload \u2192 assert deletion persisted; delete the last item \u2192 assert empty state and `[]` in storage. All assertions passed.\n- Screenshot check confirmed layout and completed styling render correctly.\n\nOnly `index.html` was added to the workspace."
+  },
+  {
     "id": "A-20261119T020147",
     "path": "harness/runs/arms/A-20261119T020147",
     "category": "arm",

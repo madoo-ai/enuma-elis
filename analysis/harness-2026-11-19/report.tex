@@ -128,6 +128,11 @@ One real API defect was found during testing: \code{Page.text()} mapped to the
 native \code{read} action, which does not exist in \code{agent-browser}.  It was
 fixed to use \code{get("text", "body")}.
 
+A post-report native baseline retest isolated the remaining arm 0 stall to the
+goal-authorization path.  With \code{OPENCODE\_ENABLE\_QUESTION\_TOOL=false},
+the same broad native prompt completed in 189.7 seconds and produced the
+requested artifact.  The diagnostic details are in \S\ref{sec:native-retest}.
+
 \section{Data and method}
 
 \subsection{Corpus}
@@ -149,6 +154,12 @@ Historical arm B comparison & 2 & Raw-exec allowed vs.\ blocked \\
 \caption{Run inventory.  The current arm sweep and scenarios are the primary
 evidence; older runs are retained for comparison.}
 \end{table}
+
+The original quantitative snapshot below is the 28-run corpus.  After it was
+compiled, a separate native baseline retest added four arm 0 runs.  They are
+analyzed in \S\ref{sec:native-retest} and included in the regenerated JSON/CSV
+data, but they are kept out of the primary tables so the original arm matrix
+remains comparable.
 
 The aggregate source data is stored in:
 
@@ -324,6 +335,94 @@ B 2026-11-19 02:04 & 6 & 5 & 0 & 0 & built the app with typed tools only \\
 
 The blocked runs did not merely fail; they changed strategy.  This is the
 central safety result of the harness.
+
+\subsection{Native baseline retest and goal-gate diagnosis}
+\label{sec:native-retest}
+
+The arm 0 row above was compiled before the cause of its stall was known.  A
+separate retest isolated that cause.  The question was whether the broad to-do
+prompt, the newly built fork binary, or the goal gate was responsible.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{p{2.8cm}p{2.3cm}p{2.2cm}p{2.2cm}p{4.3cm}}
+\toprule
+\textbf{Run} & \textbf{Prompt} & \textbf{Goal tool} & \textbf{Outcome} & \textbf{Artifact} \\
+\midrule
+\code{013043} & broad to-do & exposed & stalled; killed & none; scratchpad only \\
+\code{040239} & broad to-do & exposed & stalled; killed & none; scratchpad only \\
+\code{051103} & broad to-do & exposed & stalled; killed & none; scratchpad only \\
+\code{050432} & narrow hello & exposed & pass & 14-byte \code{hello.html} \\
+\code{052116} & broad to-do & disabled & pass & 6,230-byte \code{index.html} \\
+\bottomrule
+\end{tabular}
+\caption{Native arm 0 retest.  ``Stalled'' means the CLI stayed on one model
+step far beyond the normal few seconds and was killed by the operator; these
+runs produced no implementation artifact.}
+\end{table}
+
+Two other broad-prompt attempts were killed before they produced final metrics;
+they are retained in the raw run directory but omitted from the table.  The
+narrow-prompt control is important: it shows that the same binary could inspect,
+write, and read back a file.  The binary was not generally broken.
+
+The decisive comparison is the broad prompt with the goal tool exposed versus
+disabled.  In the exposed runs, SQLite contained one \code{session\_goal} row
+with:
+
+\begin{lstlisting}[style=json]
+authorized_at = null
+phase         = "dev"
+status        = "active"
+\end{lstlisting}
+
+In the clean run, after \code{OPENCODE\_ENABLE\_QUESTION\_TOOL=false} removed
+both \code{question} and \code{goal} from the tool registry, SQLite contained
+zero \code{session\_goal} rows.  The model then completed the same broad task in
+189.7 seconds.
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lrrrrl}
+\toprule
+\textbf{Run} & \textbf{Steps} & \textbf{Tool calls} & \textbf{Sec.} & \textbf{Goal calls} & \textbf{Result} \\
+\midrule
+\code{013043} & 4 & 9 & 15.0 & 1 & blocked \\
+\code{040239} & 3 & 7 & 9.2 & 1 & blocked \\
+\code{051103} & 3 & 5 & 8.9 & 1 & blocked \\
+\code{052116} & 20 & 22 & 189.7 & 0 & completed \\
+\bottomrule
+\end{tabular}
+\caption{Native arm 0 attempts with usable metrics.  Durations for blocked runs
+cover only recorded activity before the kill, not total wall time.}
+\end{table}
+
+The successful run made 22 native tool calls: 16 \code{bash}, 4 \code{read},
+1 \code{glob}, and 1 \code{write}.  Ten of the sixteen shell commands used
+\code{agent-browser}; eight used \code{agent-browser eval}.  The model did not
+use the curated \code{browser} tool at all.  It preferred the CLI because it
+wanted direct JavaScript evaluation and fine-grained control over
+\code{localStorage}.
+
+The behavioral sequence was:
+
+\begin{enumerate}[leftmargin=1.5em]
+\item inspect the workspace and git state;
+\item probe Node, npm, Chromium, and \code{agent-browser};
+\item read the \code{agent-browser} help and core skill;
+\item test \code{localStorage} on a scratch HTML file under \code{/tmp};
+\item write the 287-line \code{index.html};
+\item read it back;
+\item drive add/complete/delete/reload/delete-to-empty through
+\code{agent-browser eval};
+\item clean up the test browser and report only \code{index.html}.
+\end{enumerate}
+
+The diagnosis is therefore narrow: the binary and prompt were not sufficient
+explanations.  The stall was the goal-authorization boundary.  Disabling the
+authorization surface turned the same task into a clean native baseline.
 
 \subsection{Tool-call economy}
 
@@ -1020,8 +1119,8 @@ remove several import/attribute failures.
 mapping matches model intuition.
 \item \textbf{Teach browser snapshot semantics.}  Static text may not appear;
 \code{get("text", "body")} is the reliable text view.
-\item \textbf{Use a narrower native baseline prompt.}  The broad to-do prompt
-does not produce a clean arm 0 comparison.
+\item \textbf{Disable authorization tools for non-interactive harness runs.}
+The native arm 0 stall was the goal gate, not the prompt or binary.
 \item \textbf{Promote the scenario runner into the repository.}  The current
 scenario script is in \code{/tmp}; it should be checked in for repeatability.
 \end{enumerate}
@@ -1032,8 +1131,11 @@ The harness corpus shows that Python code mode is not merely a wrapper around
 native tools.  The model can use it to build and verify real artifacts under
 tight sandbox constraints.  The typed surface changes the failure mode from raw
 capability bypass to API-shape discovery, which is a better failure mode to
-have.  The highest-value next step is therefore not more tools, but better
-semantic visibility: short, explicit signatures and canonical imports.
+have.  The native baseline retest adds a second lesson: non-interactive harness
+runs should not expose human-authorization tools, because an otherwise capable
+agent can stall there.  The highest-value next step is therefore not more
+tools, but better semantic visibility: short, explicit signatures and canonical
+imports.
 
 \appendix
 
@@ -1056,6 +1158,10 @@ semantic visibility: short, explicit signatures and canonical imports.
 \textbf{Run id} & \textbf{Category} & \textbf{Python calls} & \textbf{Child calls} \\
 \midrule
 \code{0-20261119T013043} & arm & 0 & 0 \\
+\code{0-20261119T040239} & arm & 0 & 0 \\
+\code{0-20261119T050432} & arm & 0 & 0 \\
+\code{0-20261119T051103} & arm & 0 & 0 \\
+\code{0-20261119T052116} & arm & 0 & 0 \\
 \code{A-20261119T020147} & arm & 22 & 32 \\
 \code{B-20261119T020443} & arm & 6 & 6 \\
 \code{C-20261119T020531} & arm & 5 & 5 \\

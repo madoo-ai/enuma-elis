@@ -1,5 +1,5 @@
 {
-  "runs": 28,
+  "runs": 32,
   "python_calls": 149,
   "python_ok": 123,
   "python_failed": 26,
@@ -42,10 +42,10 @@
     "timeout": 2
   },
   "verification_words": {
-    "verified": 11,
-    "read_back": 3,
+    "verified": 13,
+    "read_back": 4,
     "limitation": 2,
-    "browser_check": 12,
+    "browser_check": 13,
     "static_check": 5
   },
   "raw_exec": 18,
@@ -61,6 +61,10 @@
     "2026-11-18-unbounded-prometheus": 7.6,
     "2026-11-18-vision-prometheus": 33.5,
     "0-20261119T013043": 15.0,
+    "0-20261119T040239": 9.2,
+    "0-20261119T050432": 10.7,
+    "0-20261119T051103": 8.9,
+    "0-20261119T052116": 189.7,
     "A-20261119T020147": 157.9,
     "B-20261118T154723": 132.6,
     "B-20261118T155413": 41.1,
