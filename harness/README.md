@@ -66,9 +66,13 @@ What it sets up:
 - `OPENCODE_PYTHON_CODE_MODE=true`.
 - `OPENCODE_GOAL_REQUIRED=false` for a test session; override it to match the
   fleet.
+- `OPENCODE_ENABLE_QUESTION_TOOL=false` by default. This removes `question` and
+  `goal` from every agent, including the native `build` arm, so a harness run
+  cannot block on an authorization prompt.
 - A `python-experiment` agent with `toolset: [python]` and all v1 Python
-  modules, including `agents.tasks.run` and `browser`. `goal` and `question`
-  are left out so a test cannot block on an authorization prompt.
+  modules, including `agents.tasks.run` and `browser`.
+- `OPENCODE_STATE_DIR=<host-dir>` optionally bind-mounts the agent's OpenCode
+  state directory, so the SQLite DB survives the container for debugging.
 
 Pass `OPENCODE_API_KEY` and `LITELLM_BASE_URL` from the host if you want real
 model calls; otherwise the server starts and health works, but a prompt cannot
