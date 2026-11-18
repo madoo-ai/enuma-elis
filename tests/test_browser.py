@@ -56,7 +56,10 @@ class BrowserPageTest(unittest.TestCase):
             self.assertEqual(styles, {"display": "block"})
             self.assertTrue(visible)
 
-            self.assertEqual(host.calls[0], ("browser.call", {"action": "read"}))
+            self.assertEqual(
+                host.calls[0],
+                ("browser.call", {"action": "get", "what": "text", "target": "body"}),
+            )
             self.assertEqual(
                 host.calls[1],
                 ("browser.call", {"action": "get", "what": "title"}),
