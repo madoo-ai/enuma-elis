@@ -28,7 +28,8 @@ What works now:
   navigation, snapshots, semantic locators, actions, waits, tabs, screenshots,
   PDF, console/errors, network, vitals, evaluate, and low-level mouse input.
   It has no browser endpoint and no launch, connect, or close method; the host
-  resolves the one browser it owns for every call.
+  resolves the one browser it owns for every call. A returned `Screenshot`
+  becomes a model attachment, not a base64 blob in the text output.
 - `tests/fake_host.py` — a Python host over a socketpair; no fork needed.
 - `tests/test_stdio.py` — the real stdio path the fork adapter uses.
 - Fork adapter at `me-when-agents/packages/opencode/src/tool/python/` — `python`
@@ -80,6 +81,11 @@ the stdio protocol, typed tools, raw-write audit, and the read-only root. See
 [`harness/README.md`](harness/README.md) for the two production findings:
 Docker's default seccomp blocks bwrap user namespaces, and the run directory
 must be bound under the private `/tmp` tmpfs.
+
+For the unbounded experiment, `OPENCODE_PYTHON_SANDBOX=none ./harness/serve.sh`
+runs the Python runtime directly in the container. It has no bwrap, shares
+`/tmp`, can spawn processes, and can read the server filesystem. Use a throwaway
+container.
 
 The serve harness builds the fork inside the base image (a host build needs a
 newer glibc and ICU) and publishes the server port:

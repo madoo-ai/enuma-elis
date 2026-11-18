@@ -125,6 +125,24 @@ One Python program called `agents.tasks.run("explore", ...)`; the child returned
 the file listing, and the adapter wrote the child transcript to
 `.manus/tasks/<session>.jsonl`. Task time was 8.3 s; one of two task calls used.
 
+## Unbounded run
+
+`OPENCODE_PYTHON_SANDBOX=none` runs the Python runtime directly in the server
+container. It is not a sandbox: the program can read `/etc`, use the network,
+spawn processes, and see the server environment. Use a throwaway container and
+do not point it at a real workspace.
+
+```bash
+OPENCODE_PYTHON_SANDBOX=none ./harness/serve.sh
+# or a full arm:
+./harness/arms.sh U
+```
+
+In this mode the host and Python share `/tmp`, so `page.screenshot("/tmp/a.png")`
+returns a path the program can open directly. If the program returns the
+`Screenshot`, the host reads the path and attaches the image; the Python
+program does not carry base64 bytes in this mode.
+
 ## Browser run
 
 The browser is a real session browser, not a headless test fixture. `Xvnc` and
@@ -141,15 +159,22 @@ Prompt it with a local or public page, for example:
 > then go back. Return what you observed.
 
 The Python program uses `browser.page()`. It never receives a CDP port or a
-browser handle, so it cannot attach to a different Chromium. Screenshot bytes
-cross as base64 when the host can read the saved file; the path is present
-either way.
+browser handle, so it cannot attach to a different Chromium. A returned
+`Screenshot` becomes a `file` attachment at the Python tool boundary; the host
+strips the base64 from the text output and the session turns the attachment into
+a media part for models that accept images.
 
 The first recorded run is
 [`runs/2026-11-18-browser-prometheus/`](runs/2026-11-18-browser-prometheus/analysis.md).
 One Python call made six `browser.call` child calls, returned the title, an
 attribute, visibility, and a 4,472-byte screenshot, with
 `{rawOpen: 0, rawExec: 0, rawNet: 0}`.
+
+The unbounded run is
+[`runs/2026-11-18-unbounded-prometheus/`](runs/2026-11-18-unbounded-prometheus/analysis.md).
+It read `/etc/hostname`, ran `id`, returned a `Screenshot`, and produced a
+`file` attachment. `prometheus` is text-only, so it reported that it could not
+see the image.
 
 ## Experiment arms
 
@@ -162,13 +187,14 @@ Each arm starts a fresh server, runs the same prompt, exports the session,
 copies the workspace (without `.git`), and writes `metrics.json`. The workspace
 is a git fixture now, so `filesChanged` is populated by the snapshot service.
 
-| Arm | Catalog | Python modules | Workspace | Net | Raw exec |
-| --- | --- | --- | --- | --- | --- |
-| 0 | normal, no python | — | rw | on | — |
-| A | python only | fs, mutate, shell, web, state, agents | rw | on | allowed |
-| B | python only | fs, mutate, web, state | rw | on | blocked |
-| C | python only | fs, mutate, web, state | ro | on | blocked |
-| D | python only | fs, mutate, state | ro | off | blocked |
+| Arm | Catalog | Python modules | Workspace | Net | Raw exec | Sandbox |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | normal, no python | — | rw | on | — | — |
+| A | python only | fs, mutate, shell, web, state, agents | rw | on | allowed | bwrap |
+| B | python only | fs, mutate, web, state | rw | on | blocked | bwrap |
+| C | python only | fs, mutate, web, state | ro | on | blocked | bwrap |
+| D | python only | fs, mutate, state | ro | off | blocked | bwrap |
+| U | python only | fs, mutate, shell, web, state, agents, browser | rw | on | allowed | none |
 
 `OPENCODE_PYTHON_BLOCK_RAW_EXEC=1` makes the `sitecustomize` audit hook raise
 `PermissionError` on `subprocess`, `os.system`, and the `os.exec` family after

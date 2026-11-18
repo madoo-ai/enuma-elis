@@ -19,6 +19,7 @@ from typing import Any, BinaryIO
 
 from ._bridge import Bridge, PROTOCOL
 from ._errors import AgentError
+from ._types import Screenshot
 
 __version__ = "0.1.0"
 
@@ -161,6 +162,13 @@ def to_json(value: Any) -> Any:
 
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
+    if isinstance(value, Screenshot):
+        return {
+            "__agent_kind__": "screenshot",
+            "path": value.path,
+            "mime": value.mime,
+            "data": value.data,
+        }
     if isinstance(value, (list, tuple)):
         return [to_json(item) for item in value]
     if isinstance(value, dict):

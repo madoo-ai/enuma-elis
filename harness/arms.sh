@@ -4,6 +4,7 @@
 # Requires OPENCODE_API_KEY (a LiteLLM key) and LITELLM_BASE_URL.
 #   ./harness/arms.sh B
 #   ./harness/arms.sh 0 A B C D
+#   ./harness/arms.sh U        # unbounded: no bwrap, all modules
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,6 +26,7 @@ fi
 
 for index in "${!ARMS[@]}"; do
   ARM="${ARMS[$index]}"
+  SANDBOX="${OPENCODE_PYTHON_SANDBOX:-bwrap}"
   case "$ARM" in
     0)
       MODE=false
@@ -66,8 +68,17 @@ for index in "${!ARMS[@]}"; do
       NETWORK=false
       BLOCK=1
       ;;
+    U)
+      MODE=true
+      AGENT=python-experiment
+      MODULES=fs,mutate,shell,web,state,agents,browser
+      WORKSPACE=rw
+      NETWORK=true
+      BLOCK=0
+      SANDBOX=none
+      ;;
     *)
-      echo "unknown arm: $ARM (use 0, A, B, C, D)" >&2
+      echo "unknown arm: $ARM (use 0, A, B, C, D, U)" >&2
       exit 1
       ;;
   esac
@@ -82,6 +93,7 @@ for index in "${!ARMS[@]}"; do
     "OPENCODE_PYTHON_WORKSPACE=$WORKSPACE"
     "OPENCODE_PYTHON_NETWORK=$NETWORK"
     "OPENCODE_PYTHON_BLOCK_RAW_EXEC=$BLOCK"
+    "OPENCODE_PYTHON_SANDBOX=$SANDBOX"
   )
   [ -n "$MODULES" ] && ENVV+=("PYTHON_MODULES=$MODULES")
 

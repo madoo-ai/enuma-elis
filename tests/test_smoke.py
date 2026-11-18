@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 import agent
-from agent._types import Text
+from agent._types import Screenshot, Text
 
 
 class SmokeTest(unittest.TestCase):
@@ -26,6 +26,18 @@ class SmokeTest(unittest.TestCase):
     def test_to_json(self) -> None:
         value = agent.to_json({"text": Text("a.go", "package a\n")})
         self.assertEqual(value, {"text": {"path": "a.go", "text": "package a\n", "lines": None, "truncated": False, "kind": "file"}})
+
+    def test_to_json_marks_a_screenshot(self) -> None:
+        value = agent.to_json(Screenshot("/tmp/shot.png", "image/png", "aGVsbG8="))
+        self.assertEqual(
+            value,
+            {
+                "__agent_kind__": "screenshot",
+                "path": "/tmp/shot.png",
+                "mime": "image/png",
+                "data": "aGVsbG8=",
+            },
+        )
 
     def test_to_json_rejects_unknown(self) -> None:
         with self.assertRaises(agent.AgentError) as caught:

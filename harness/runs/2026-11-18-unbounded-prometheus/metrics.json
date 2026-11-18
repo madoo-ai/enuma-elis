@@ -1,0 +1,36 @@
+{
+  "source": "session.json",
+  "steps": 2,
+  "tools": {
+    "python": 1
+  },
+  "childTools": {
+    "browser.call": 3
+  },
+  "tokens": {
+    "input": 1742,
+    "output": 276,
+    "reasoning": 530,
+    "cacheRead": 2048
+  },
+  "cost": 0.0,
+  "errors": 0,
+  "audit": {
+    "rawOpen": 0,
+    "rawExec": 1,
+    "rawNet": 0
+  },
+  "filesChanged": [],
+  "durationSeconds": 7.6,
+  "finalText": "Completed in one Python program.\n\n```json\n{\n  \"hostname\": \"a017145762dc\",\n  \"uid\": \"1000\",\n  \"shot\": {\n    \"path\": \"/tmp/attach-check.png\",\n    \"mime\": \"image/png\"\n  }\n}\n```\n\nThe screenshot was written successfully, but I couldn\u2019t visually inspect it because this model does not support image input.",
+  "workspace": [
+    {
+      "path": "README.md",
+      "bytes": 49
+    },
+    {
+      "path": "sample.txt",
+      "bytes": 24
+    }
+  ]
+}

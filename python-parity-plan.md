@@ -153,8 +153,9 @@ until the live stack moves.
 {"action": "snapshot", "text": "..."}
 ```
 
-For `screenshot` it also returns `path` and `mime`; `python.ts` reads the file
-when it can and adds `data` as base64. Python parses that into:
+For `screenshot` it also returns `path` and `mime`; a sandboxed run adds `data`
+as base64 because the Python program cannot read the host path. Python parses
+that into:
 
 ```python
 @dataclass(frozen=True)
@@ -173,6 +174,19 @@ field: text, html, value, title, url, count, box, or the styles object. `is_`
 returns `bool`. `screenshot` returns `Screenshot`. There is no `BrowserResult`
 wrapper; the Page methods are the typed surface.
 
+If the program returns a `Screenshot`, the Python tool converts it to a
+`Tool.ExecuteResult` attachment: a `file` part with a data URL. This is the same
+shape `read` uses for images and PDFs and `webfetch` uses for image responses.
+The session layer gives the model a media part, or extracts it into a separate
+user message when the provider cannot take media in a tool result. The base64
+never appears in the model-visible text; the text keeps only `path` and `mime`.
+A text-only model cannot consume the image, which is a model limit.
+
+Under `OPENCODE_PYTHON_SANDBOX=none`, the runtime is direct: the host and Python
+share `/tmp`, `subprocess` works, and a screenshot path is directly readable.
+The host still builds the attachment on return; it just reads the path instead
+of using bytes copied from the browser call.
+
 ### Tests
 
 - Fake host: every Page method produces the exact V1 payload and parses the
@@ -187,6 +201,11 @@ wrapper; the Page methods are the typed surface.
   screenshot. One Python call, six `browser.call` child calls, no raw file,
   process, or socket calls. The base image already has Chromium and
   `agent-browser`; no `OPENCODE_EAGER_BROWSER` was needed.
+- Unbounded mode: the
+  [unbounded run](../harness/runs/2026-11-18-unbounded-prometheus/analysis.md)
+  reads `/etc/hostname`, runs `id`, and returns a `Screenshot`. The tool result
+  carries the PNG as a `file` attachment; `prometheus` is text-only and cannot
+  consume it.
 
 ## 2. LSP
 
