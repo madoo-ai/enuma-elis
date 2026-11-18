@@ -97,8 +97,10 @@ class Page:
             selector=selector,
         )
 
-    def read(self, url: str | None = None) -> str:
-        return self._text("read", url=url)
+    def read(self) -> str:
+        """Read the page's visible text."""
+
+        return self.get("text", "body")
 
     def text(self) -> str:
         return self.read()
