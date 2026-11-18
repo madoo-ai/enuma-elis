@@ -1,0 +1,7 @@
+workspace kept: /tmp/opencode/enuma-serve.lfhMKj
+opencode:  /home/x1nx3r/prototypes/everything-is-a-file/me-when-agents/packages/opencode/dist/opencode-linux-x64/bin/opencode
+image:     manus-dei/base:latest
+workspace: /tmp/opencode/enuma-serve.lfhMKj
+url:       http://127.0.0.1:4204
+Warning: OPENCODE_SERVER_PASSWORD is not set; server is unsecured.
+opencode server listening on http://0.0.0.0:4096

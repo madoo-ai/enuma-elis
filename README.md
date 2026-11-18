@@ -33,6 +33,8 @@ What works now:
   resolves the one browser it owns for every call. Returned `Screenshot`,
   `Image`, and image `FetchResult` values become model attachments, not base64
   blobs in the text output.
+- `agent.jobs` — generic background call handles for every SDK tool: start a
+  call, keep the program running, and await only the results it needs.
 - `tests/fake_host.py` — a Python host over a socketpair; no fork needed.
 - `tests/test_stdio.py` — the real stdio path the fork adapter uses.
 - Fork adapter at `me-when-agents/packages/opencode/src/tool/python/` — `python`

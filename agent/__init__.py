@@ -19,6 +19,7 @@ from typing import Any, BinaryIO
 
 from ._bridge import Bridge, PROTOCOL
 from ._errors import AgentError
+from . import jobs
 from ._types import FetchResult, Image, Screenshot
 
 __version__ = "0.1.0"
@@ -211,6 +212,7 @@ __all__ = [
     "AgentError",
     "Client",
     "current_client",
+    "jobs",
     "to_json",
     "to_error",
     "__version__",

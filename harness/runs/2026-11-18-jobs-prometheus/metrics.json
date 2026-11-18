@@ -1,0 +1,37 @@
+{
+  "source": "session.json",
+  "steps": 4,
+  "tools": {
+    "python": 3
+  },
+  "childTools": {
+    "fs.read": 2,
+    "fs.glob": 2
+  },
+  "tokens": {
+    "input": 1655,
+    "output": 720,
+    "reasoning": 654,
+    "cacheRead": 6656
+  },
+  "cost": 0.0,
+  "errors": 1,
+  "audit": {
+    "rawOpen": 0,
+    "rawExec": 0,
+    "rawNet": 0
+  },
+  "filesChanged": [],
+  "durationSeconds": 20.7,
+  "finalText": "Done. The program ran both calls concurrently via `agent.jobs.start`, collected each with `job.result()`, and returned:\n\n```json\n{\n  \"read_lines\": 2,\n  \"files\": [\n    \"/home/ubuntu/workspace/README.md\",\n    \"/home/ubuntu/workspace/sample.txt\"\n  ]\n}\n```\n\nNotes: `fs.glob` returns a `GlobResult` object (entries accessible via `.entries`), and `fs.read` returns a `Text` object with `.lines` / `.text`. `read_lines` is the line count from the README.",
+  "workspace": [
+    {
+      "path": "README.md",
+      "bytes": 49
+    },
+    {
+      "path": "sample.txt",
+      "bytes": 24
+    }
+  ]
+}

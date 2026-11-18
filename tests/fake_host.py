@@ -97,7 +97,14 @@ class FakeHost:
                         }
                     )
                 elif kind == "call":
-                    self._handle(message)
+                    # A real host runs independent calls concurrently; a single
+                    # reader thread would serialize sleeps and hide overlap.
+                    threading.Thread(
+                        target=self._handle,
+                        args=(message,),
+                        name="fake-host-call",
+                        daemon=True,
+                    ).start()
                 elif kind == "cancel":
                     pass
         except (OSError, ValueError):
@@ -140,9 +147,13 @@ class FakeHost:
 
     def _send(self, message: dict[str, Any]) -> None:
         data = (json.dumps(message, separators=(",", ":")) + "\n").encode("utf-8")
-        with self._write_lock:
-            self.host_writer.write(data)
-            self.host_writer.flush()
+        try:
+            with self._write_lock:
+                self.host_writer.write(data)
+                self.host_writer.flush()
+        except (OSError, ValueError):
+            # A late concurrent call can finish after the test closed the host.
+            pass
 
     def read(self, payload: dict[str, Any]) -> dict[str, Any]:
         path = str(payload.get("path", "?"))

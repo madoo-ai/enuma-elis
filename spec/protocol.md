@@ -93,6 +93,11 @@ The SDK may send multiple calls before receiving results. The host dispatches up
 to eight at a time and returns results in any order, keyed by `id`. The SDK
 multiplexes by `id`. Calls above the limit queue in the host.
 
+The SDK exposes this as `agent.jobs`: `jobs.start(fn, ...)` starts one tool call
+and returns a handle; `job.result()` blocks for that result. `jobs.wait_all()`
+waits for every handle the program started. This is in-program concurrency, not
+detached work that survives the program.
+
 ## Defaults
 
 | Limit | Value |
