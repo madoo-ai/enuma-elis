@@ -29,6 +29,13 @@ if [ "${GIT_FIXTURE:-1}" = "1" ] && command -v git >/dev/null 2>&1; then
   git -C "$WORK" -c user.name=harness -c user.email=harness@example.invalid commit -q -m fixture
 fi
 
+# Optional persistent agent state. Bind-mount it before the container starts so
+# the SQLite DB survives `--rm`; the directory must be writable by uid 1000.
+STATE_DIR="${OPENCODE_STATE_DIR:-}"
+if [ -n "$STATE_DIR" ]; then
+  mkdir -p "$STATE_DIR"
+fi
+
 ENVS=()
 [ -n "${OPENCODE_API_KEY:-}" ] && ENVS+=(-e "OPENCODE_API_KEY=$OPENCODE_API_KEY")
 [ -n "${LITELLM_BASE_URL:-}" ] && ENVS+=(-e "LITELLM_BASE_URL=$LITELLM_BASE_URL")
@@ -46,12 +53,17 @@ echo "image:     $IMAGE"
 echo "workspace: $WORK"
 echo "url:       http://127.0.0.1:$PORT"
 
+MOUNTS=(
+  -v "$ROOT:/opt/enuma:ro"
+  -v "$BIN:/opt/opencode:ro"
+  -v "$WORK:/home/ubuntu/workspace:rw"
+)
+[ -n "$STATE_DIR" ] && MOUNTS+=(-v "$STATE_DIR:/home/ubuntu/.local/share/opencode")
+
 docker run --rm \
   --security-opt seccomp=unconfined \
   -p "$PORT:4096" \
-  -v "$ROOT:/opt/enuma:ro" \
-  -v "$BIN:/opt/opencode:ro" \
-  -v "$WORK:/home/ubuntu/workspace:rw" \
+  "${MOUNTS[@]}" \
   "${ENVS[@]}" \
   --entrypoint /bin/bash \
   "$IMAGE" /opt/enuma/harness/serve-container.sh
