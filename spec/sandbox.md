@@ -15,7 +15,7 @@ bwrap \
   --proc /proc \
   --tmpfs /tmp \
   --bind /home/ubuntu/workspace /home/ubuntu/workspace \
-  --ro-bind "$RUN_DIR" /run/agent \
+  --ro-bind "$RUN_DIR" /tmp/agent \
   --chdir /home/ubuntu/workspace \
   --clearenv \
   --setenv PATH "$PATH" \
@@ -29,7 +29,7 @@ bwrap \
   --setenv AGENT_BRIDGE_FD 3 \
   --setenv AGENT_RESULT_FD 4 \
   --preserve-fds 2 \
-  -- /opt/manus/python/current/bin/python3 /run/agent/zz_main.py
+  -- /opt/manus/python/current/bin/python3 /tmp/agent/zz_main.py
 ```
 
 - `/` is read-only. `/etc`, `/usr`, `~/.config`, and `~/.local` cannot be

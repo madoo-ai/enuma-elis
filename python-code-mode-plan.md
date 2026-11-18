@@ -34,7 +34,7 @@ bwrap
   ├─ /            ro
   ├─ /workspace    rw
   ├─ /tmp          private tmpfs
-  └─ python3 /run/agent/zz_main.py
+  └─ python3 /tmp/agent/zz_main.py
        ├─ sitecustomize.py   audit hook
        └─ agent.Client       fd 3
        │
@@ -275,7 +275,7 @@ bwrap \
   --proc /proc \
   --tmpfs /tmp \
   --bind /home/ubuntu/workspace /home/ubuntu/workspace \
-  --ro-bind "$RUN_DIR" /run/agent \
+  --ro-bind "$RUN_DIR" /tmp/agent \
   --chdir /home/ubuntu/workspace \
   --clearenv \
   --setenv PATH "$PATH" \
@@ -289,7 +289,7 @@ bwrap \
   --setenv AGENT_BRIDGE_FD 3 \
   --setenv AGENT_RESULT_FD 4 \
   --preserve-fds 2 \
-  -- /opt/manus/python/current/bin/python3 /run/agent/zz_main.py
+  -- /opt/manus/python/current/bin/python3 /tmp/agent/zz_main.py
 ```
 
 Notes:
@@ -452,7 +452,7 @@ async function dispatch(req: Call, parent: Tool.Context): Promise<Result> {
 
 ### 7.5 Launcher details
 
-- Run dir: `/home/ubuntu/.local/state/manus/python/<callID>/` on the host. Write `program.py` and `zz_main.py`; mount it ro at `/run/agent`. Keep it outside `/tmp`, because the child gets a private tmpfs there and the bind source would be shadowed.
+- Run dir: `/home/ubuntu/.local/state/manus/python/<callID>/` on the host. Write `program.py` and `zz_main.py`; mount it ro at `/tmp/agent` **after** `--tmpfs /tmp`, so bwrap can create the destination on the tmpfs. Keep the source outside `/tmp`; the destination is inside the private tmpfs.
 - Fds: create two pipes for fd 3 and fd 4. Node/Bun `spawn` with `stdio: ["ignore", "pipe", "pipe", "pipe", "pipe"]`. bwrap `--preserve-fds 2`.
 - If the runtime cannot pass extra fds, fallback: bridge on stdin/stdout with length-prefixed frames, and `sitecustomize` redirects `sys.stdout` to stderr. Document the fallback, prefer fds.
 - Process group: spawn detached or with a process group; kill the group on abort/timeout.
@@ -667,12 +667,17 @@ MCP and plugin/custom tools. Not in v1.
 - Base image with `bubblewrap` and the runtime volume.
 - One real session: `fs` + `mutate` + `shell` program.
 - Experiment A/B/C on a fixed task; compare turns, cache read, raw writes.
+- `./harness/run.sh` runs the SDK and bwrap inside `manus-dei/base:latest`. It
+  found that Docker's default seccomp blocks bwrap and that the run directory
+  must be bound at `/tmp/agent` after `--tmpfs /tmp`.
 
 ## 13. Risks
 
 | Risk | Mitigation |
 | --- | --- |
 | bwrap unavailable or user namespaces blocked | Install `bubblewrap`; smoke test in the base image; return `Unavailable` rather than unsandboxed |
+| Docker's default seccomp blocks bwrap | The harness passes `--security-opt seccomp=unconfined`; a real session needs the same, a custom profile, or a different sandbox. `--cap-add SYS_ADMIN` alone is not enough |
+| bwrap cannot create `/run/agent` on a read-only root | Bind the run directory at `/tmp/agent` after `--tmpfs /tmp`; the source stays outside `/tmp` |
 | Bun/Node extra fd support | Test fd 3/4; fallback to framed stdin/stdout with `sitecustomize` redirect |
 | V1 tools return text | Adapters or V2 port; no SDK method without an output schema |
 | Runtime/binary protocol drift | Manifest hash + handshake; fail closed |
@@ -686,7 +691,10 @@ MCP and plugin/custom tools. Not in v1.
 
 ## 14. Open items
 
-- Confirm bwrap user-namespace behavior in the target Docker runtime.
+- Decide the session seccomp profile: `seccomp=unconfined`, a custom profile
+  that allows the namespace syscalls, or a different sandbox (Landlock,
+  read-only rootfs). The harness proves the first works and that the default
+  profile does not.
 - Confirm extra-fd support in the fork's Bun runtime.
 - Pick the cache policy for the experiment: cold `/tmp` caches or warm `~/.cache`/`~/go` binds.
 - Decide whether `state.todos.write` is useful enough for v1; it may be noise.

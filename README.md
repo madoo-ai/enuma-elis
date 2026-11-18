@@ -58,6 +58,18 @@ schemas in the manifest, and the MCP/plugin surface.
 
 No dependencies beyond Python 3.11+.
 
+## Sandbox harness
+
+```bash
+./harness/run.sh
+```
+
+Runs the SDK and the bwrap sandbox inside `manus-dei/base:latest`. It exercises
+the stdio protocol, typed tools, raw-write audit, and the read-only root. See
+[`harness/README.md`](harness/README.md) for the two production findings:
+Docker's default seccomp blocks bwrap user namespaces, and the run directory
+must be bound under the private `/tmp` tmpfs.
+
 ## Notes
 
 - The test fixture is `me-when-agents/`, a full copy of the fork. It is ignored by
