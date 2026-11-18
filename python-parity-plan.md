@@ -180,7 +180,9 @@ shape `read` uses for images and PDFs and `webfetch` uses for image responses.
 The session layer gives the model a media part, or extracts it into a separate
 user message when the provider cannot take media in a tool result. The base64
 never appears in the model-visible text; the text keeps only `path` and `mime`.
-A text-only model cannot consume the image, which is a model limit.
+The model config must declare `attachment: true` and
+`modalities.input: ["text", "image"]`; otherwise opencode hides the media even
+when the provider reports `supports_vision: true`.
 
 Under `OPENCODE_PYTHON_SANDBOX=none`, the runtime is direct: the host and Python
 share `/tmp`, `subprocess` works, and a screenshot path is directly readable.
@@ -204,8 +206,11 @@ of using bytes copied from the browser call.
 - Unbounded mode: the
   [unbounded run](../harness/runs/2026-11-18-unbounded-prometheus/analysis.md)
   reads `/etc/hostname`, runs `id`, and returns a `Screenshot`. The tool result
-  carries the PNG as a `file` attachment; `prometheus` is text-only and cannot
-  consume it.
+  carries the PNG as a `file` attachment.
+- Vision: after declaring image modalities, the
+  [vision run](../harness/runs/2026-11-18-vision-prometheus/analysis.md) reads
+  `VISION-OK-739` and `#123456` from a canvas screenshot. This proves the
+  attachment reaches the model as media, not text.
 
 ## 2. LSP
 

@@ -45,6 +45,10 @@ config = {
             "models": {
                 "prometheus": {
                     "name": "Prometheus",
+                    "attachment": True,
+                    "reasoning": True,
+                    "tool_call": True,
+                    "modalities": {"input": ["text", "image"], "output": ["text"]},
                     "limit": {"context": 1_000_000, "output": 384_000},
                 }
             },

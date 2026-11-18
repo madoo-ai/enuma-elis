@@ -173,8 +173,14 @@ attribute, visibility, and a 4,472-byte screenshot, with
 The unbounded run is
 [`runs/2026-11-18-unbounded-prometheus/`](runs/2026-11-18-unbounded-prometheus/analysis.md).
 It read `/etc/hostname`, ran `id`, returned a `Screenshot`, and produced a
-`file` attachment. `prometheus` is text-only, so it reported that it could not
-see the image.
+`file` attachment. That run predates the model capability config, so it could
+not see the image. The corrected vision run is
+[`runs/2026-11-18-vision-prometheus/`](runs/2026-11-18-vision-prometheus/analysis.md):
+the model read `VISION-OK-739` and `#123456` from a canvas screenshot.
+
+The harness model config must declare `attachment: true` and
+`modalities.input: ["text", "image"]`; otherwise opencode hides media from the
+model even when the provider supports vision.
 
 ## Experiment arms
 

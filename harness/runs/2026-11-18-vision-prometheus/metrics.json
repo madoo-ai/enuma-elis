@@ -1,0 +1,36 @@
+{
+  "source": "session.json",
+  "steps": 3,
+  "tools": {
+    "python": 2
+  },
+  "childTools": {
+    "browser.call": 3
+  },
+  "tokens": {
+    "input": 2234,
+    "output": 532,
+    "reasoning": 245,
+    "cacheRead": 4096
+  },
+  "cost": 0.0,
+  "errors": 1,
+  "audit": {
+    "rawOpen": 0,
+    "rawExec": 0,
+    "rawNet": 0
+  },
+  "filesChanged": [],
+  "durationSeconds": 33.5,
+  "finalText": "Done.\n\n**Screenshot object returned:**\n```json\n{\"path\": \"/tmp/vision.png\", \"mime\": \"image/png\"}\n```\n\n**What I see in the image:**\n- **Text:** `VISION-OK-739` \u2014 large white sans-serif characters\n- **Background color:** the canvas fills with a dark navy blue, `#123456` (RGB 18, 52, 86); the text is white (`#ffffff`). The surrounding page area outside the 600\u00d7300 canvas is plain white.\n\nThe canvas renders at the top-left of the viewport, 600\u00d7300 px, with the text near the left edge at the baseline you'd expect for `fillText(..., 30, 160)`.",
+  "workspace": [
+    {
+      "path": "README.md",
+      "bytes": 49
+    },
+    {
+      "path": "sample.txt",
+      "bytes": 24
+    }
+  ]
+}

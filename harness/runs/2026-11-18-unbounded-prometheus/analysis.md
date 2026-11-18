@@ -35,9 +35,11 @@ One Python call, three `browser.call` child calls, no errors.
 - Screenshot: [`screenshot.png`](screenshot.png), 6.6 KB.
 - The Python tool result carries the image as a `file` attachment with a
   `data:image/png;base64,...` URL. The text output has only the path and MIME.
-- The model reported that it could not visually inspect the image because
-  `prometheus` does not support image input. The attachment exists; the model
-  capability does not.
+- The model reported that it could not visually inspect the image. At that
+  point the harness config omitted `attachment` and image modalities, so
+  opencode hid the media. That was a config bug, not a model limit; the later
+  [vision run](../2026-11-18-vision-prometheus/analysis.md) reads a canvas
+  screenshot correctly after the config fix.
 
 ## What this shows
 
@@ -48,5 +50,5 @@ One Python call, three `browser.call` child calls, no errors.
 - Returning the `Screenshot` object still becomes a model attachment at the
   Python tool boundary. The base64 is internal to the tool result, not part of
   the model text.
-- A text-only model cannot consume the image. That is a model capability limit,
-  not a missing attachment.
+- The attachment path is independent of the sandbox mode. With the corrected
+  model capabilities, the model consumes the image as a media part.
