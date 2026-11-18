@@ -19,7 +19,7 @@ from typing import Any, BinaryIO
 
 from ._bridge import Bridge, PROTOCOL
 from ._errors import AgentError
-from ._types import Screenshot
+from ._types import FetchResult, Image, Screenshot
 
 __version__ = "0.1.0"
 
@@ -168,6 +168,23 @@ def to_json(value: Any) -> Any:
             "path": value.path,
             "mime": value.mime,
             "data": value.data,
+        }
+    if isinstance(value, Image):
+        return {
+            "__agent_kind__": "attachment",
+            "path": value.path,
+            "mime": value.mime,
+            "data": value.data,
+        }
+    if isinstance(value, FetchResult) and value.data:
+        return {
+            "__agent_kind__": "attachment",
+            "path": value.url,
+            "url": value.url,
+            "mime": value.mime,
+            "data": value.data,
+            "text": value.text,
+            "title": value.title,
         }
     if isinstance(value, (list, tuple)):
         return [to_json(item) for item in value]

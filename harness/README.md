@@ -178,6 +178,11 @@ not see the image. The corrected vision run is
 [`runs/2026-11-18-vision-prometheus/`](runs/2026-11-18-vision-prometheus/analysis.md):
 the model read `VISION-OK-739` and `#123456` from a canvas screenshot.
 
+Native `read` and `webfetch` attachments are covered by
+[`runs/2026-11-18-native-attachments-prometheus/`](runs/2026-11-18-native-attachments-prometheus/analysis.md).
+An image read from the workspace and the same image fetched over local HTTP both
+arrived as model attachments; the model read `VISION-OK-739` from both.
+
 The harness model config must declare `attachment: true` and
 `modalities.input: ["text", "image"]`; otherwise opencode hides media from the
 model even when the provider supports vision.

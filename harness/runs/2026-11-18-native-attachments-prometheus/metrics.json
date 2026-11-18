@@ -1,0 +1,41 @@
+{
+  "source": "session.json",
+  "steps": 2,
+  "tools": {
+    "python": 1
+  },
+  "childTools": {
+    "fs.read": 1,
+    "web.fetch": 1
+  },
+  "tokens": {
+    "input": 1727,
+    "output": 306,
+    "reasoning": 156,
+    "cacheRead": 2048
+  },
+  "cost": 0.0,
+  "errors": 0,
+  "audit": {
+    "rawOpen": 0,
+    "rawExec": 0,
+    "rawNet": 0
+  },
+  "filesChanged": [],
+  "durationSeconds": 16.0,
+  "finalText": "Both images show the same text:\n\n**`VISION-OK-739`**\n\nDetails of what each returned:\n\n- **`fs.read(\"vision.png\")`** \u2014 returned metadata only: `path: \"vision.png\"`, `mime: \"image/png\"` (no text field). The image itself rendered as the first attachment, showing the white text `VISION-OK-739` on a dark navy rectangle in the upper-left of a white background.\n- **`web.fetch(\"http://127.0.0.1:8000/vision.png\")`** \u2014 returned `mime: \"image/png\"`, `text: \"Image fetched successfully\"`, `title: \"... (image/png)\"`. The rendered image (second attachment) is visually identical, showing `VISION-OK-739`.\n\nSo the only readable text in the image content is `VISION-OK-739`; the string \"Image fetched successfully\" is the fetch tool's status message, not text inside the image.",
+  "workspace": [
+    {
+      "path": "README.md",
+      "bytes": 49
+    },
+    {
+      "path": "sample.txt",
+      "bytes": 24
+    },
+    {
+      "path": "vision.png",
+      "bytes": 15072
+    }
+  ]
+}

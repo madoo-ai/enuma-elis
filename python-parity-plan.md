@@ -184,6 +184,16 @@ The model config must declare `attachment: true` and
 `modalities.input: ["text", "image"]`; otherwise opencode hides the media even
 when the provider reports `supports_vision: true`.
 
+Native `read` and `webfetch` use the same attachment channel. `catalog.ts`
+extracts a `data:` URL from the child tool's `attachments`:
+
+- `fs.read` returns an `Image(path, mime, data)`.
+- `web.fetch` returns `FetchResult(kind="attachment", mime, data)`.
+
+Both values are marked internally by `to_json`; `python.ts` converts every
+returned marker into a `file` attachment and removes the base64 from the text.
+This covers images and PDFs from `read`, and image responses from `webfetch`.
+
 Under `OPENCODE_PYTHON_SANDBOX=none`, the runtime is direct: the host and Python
 share `/tmp`, `subprocess` works, and a screenshot path is directly readable.
 The host still builds the attachment on return; it just reads the path instead
@@ -195,8 +205,12 @@ of using bytes copied from the browser call.
   canned result. Done in `tests/test_browser.py`.
 - Native mapping: `browser.test.ts` covers the safe CLI commands, the new
   snapshot/wait/mouse/scroll/find forms, and the refused command surface.
-- Catalog: `python-catalog.test.ts` covers the field mapping, text output, and
-  screenshot path; `python-manifest.test.ts` covers the 13th tool.
+- Catalog: `python-catalog.test.ts` covers the field mapping, text output,
+  screenshot path, and native read/fetch attachments;
+  `python-manifest.test.ts` covers the 13th tool.
+- Native attachments: the
+  [read/fetch run](../harness/runs/2026-11-18-native-attachments-prometheus/analysis.md)
+  returns an image through both paths and the model reads `VISION-OK-739`.
 - Harness: done. The
   [browser run](../harness/runs/2026-11-18-browser-prometheus/analysis.md) uses a
   `data:` page, snapshot, `get` title and attribute, `is_` visibility, and a

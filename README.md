@@ -17,10 +17,12 @@ What works now:
 
 - `agent.Client` — handshake, call multiplexing, timeouts, audit emitter, socket
   and stdio transports.
-- `agent.fs` — typed `read`, `glob`, `grep`.
+- `agent.fs` — typed `read`, `glob`, `grep`; an image or PDF read returns its
+  native attachment as an `Image` with `.bytes`.
 - `agent.mutate` — typed `edit`, `write`, `patch`.
 - `agent.shell` — typed `run` with `workdir`, timeout, and `check`.
-- `agent.web` — typed `fetch` and `search`.
+- `agent.web` — typed `fetch` and `search`; an image fetch returns its native
+  attachment as a `FetchResult` with `.bytes`.
 - `agent.state` — `skills.load` and `todos.write`.
 - `agent.agents` — `tasks.run` with the child session, final output, transcript
   path, a two-call budget, and a longer program timeout.
@@ -28,8 +30,9 @@ What works now:
   navigation, snapshots, semantic locators, actions, waits, tabs, screenshots,
   PDF, console/errors, network, vitals, evaluate, and low-level mouse input.
   It has no browser endpoint and no launch, connect, or close method; the host
-  resolves the one browser it owns for every call. A returned `Screenshot`
-  becomes a model attachment, not a base64 blob in the text output.
+  resolves the one browser it owns for every call. Returned `Screenshot`,
+  `Image`, and image `FetchResult` values become model attachments, not base64
+  blobs in the text output.
 - `tests/fake_host.py` — a Python host over a socketpair; no fork needed.
 - `tests/test_stdio.py` — the real stdio path the fork adapter uses.
 - Fork adapter at `me-when-agents/packages/opencode/src/tool/python/` — `python`
@@ -40,7 +43,9 @@ What works now:
 Not yet: the runtime volume build, the experiment arms, full input/output
 schemas in the manifest, and the MCP/plugin surface. The browser harness run is
 recorded in
-[`harness/runs/2026-11-18-browser-prometheus/`](harness/runs/2026-11-18-browser-prometheus/analysis.md).
+[`harness/runs/2026-11-18-browser-prometheus/`](harness/runs/2026-11-18-browser-prometheus/analysis.md),
+and native read/fetch attachments are confirmed in
+[`harness/runs/2026-11-18-native-attachments-prometheus/`](harness/runs/2026-11-18-native-attachments-prometheus/analysis.md).
 LSP is not planned for this phase.
 
 ## Layout

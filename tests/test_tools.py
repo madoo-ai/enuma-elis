@@ -30,6 +30,26 @@ class FilesystemReadTest(unittest.TestCase):
             self.assertEqual(result.matches[0].text, "TODO")
 
 
+class FilesystemAttachmentTest(unittest.TestCase):
+    def test_read_image(self) -> None:
+        with FakeHost() as host:
+            assert host.client is not None
+            with host.client:
+                result = fs.read("x.png")
+            self.assertEqual(result.path, "x.png")
+            self.assertEqual(result.mime, "image/png")
+            self.assertEqual(result.bytes, b"hello")
+
+    def test_fetch_image(self) -> None:
+        with FakeHost() as host:
+            assert host.client is not None
+            with host.client:
+                result = web.fetch("https://example.com/x.png")
+            self.assertEqual(result.kind, "attachment")
+            self.assertEqual(result.mime, "image/png")
+            self.assertEqual(result.bytes, b"hello")
+
+
 class FilesystemWriteTest(unittest.TestCase):
     def test_edit(self) -> None:
         with FakeHost() as host:

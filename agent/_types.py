@@ -49,6 +49,16 @@ class Image:
     truncated: bool = False
     kind: str = "image"
 
+    @property
+    def bytes(self) -> bytes:
+        """Decode a native binary attachment, when present."""
+
+        if not self.data:
+            return b""
+        import base64
+
+        return base64.b64decode(self.data)
+
 
 @dataclass(frozen=True)
 class Directory:
@@ -72,7 +82,7 @@ def parse_read(data: Any) -> ReadResult:
                 lines=value.get("lines"),
                 truncated=bool(value.get("truncated", False)),
             )
-        if kind == "image":
+        if kind in ("image", "attachment"):
             return Image(
                 path=str(value["path"]),
                 mime=str(value.get("mime", "application/octet-stream")),
@@ -250,6 +260,19 @@ class FetchResult:
     text: str
     title: str = ""
     truncated: bool = False
+    kind: str = "text"
+    mime: str = ""
+    data: str = ""
+
+    @property
+    def bytes(self) -> bytes:
+        """Decode a native binary attachment, when present."""
+
+        if not self.data:
+            return b""
+        import base64
+
+        return base64.b64decode(self.data)
 
 
 @dataclass(frozen=True)
@@ -266,6 +289,9 @@ def parse_fetch(data: Any) -> FetchResult:
         text=str(value.get("text", "")),
         title=str(value.get("title", "")),
         truncated=bool(value.get("truncated", False)),
+        kind=str(value.get("kind", "text")),
+        mime=str(value.get("mime", "")),
+        data=str(value.get("data", "")),
     )
 
 

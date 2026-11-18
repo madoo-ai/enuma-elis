@@ -145,9 +145,18 @@ class FakeHost:
             self.host_writer.flush()
 
     def read(self, payload: dict[str, Any]) -> dict[str, Any]:
+        path = str(payload.get("path", "?"))
+        if path.endswith(".png"):
+            return {
+                "kind": "attachment",
+                "path": path,
+                "mime": "image/png",
+                "data": "aGVsbG8=",
+                "truncated": False,
+            }
         return {
             "kind": "file",
-            "path": payload.get("path", "?"),
+            "path": path,
             "text": "hello\n",
             "lines": 1,
             "truncated": False,
@@ -204,8 +213,19 @@ class FakeHost:
         }
 
     def fetch(self, payload: dict[str, Any]) -> dict[str, Any]:
+        url = str(payload.get("url", ""))
+        if url.endswith(".png"):
+            return {
+                "url": url,
+                "text": "Image fetched successfully",
+                "title": "",
+                "truncated": False,
+                "kind": "attachment",
+                "mime": "image/png",
+                "data": "aGVsbG8=",
+            }
         return {
-            "url": payload.get("url", ""),
+            "url": url,
             "text": "page",
             "title": "title",
             "truncated": False,

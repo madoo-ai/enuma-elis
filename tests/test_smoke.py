@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 
 import agent
-from agent._types import Screenshot, Text
+from agent._types import FetchResult, Image, Screenshot, Text
 
 
 class SmokeTest(unittest.TestCase):
@@ -36,6 +36,37 @@ class SmokeTest(unittest.TestCase):
                 "path": "/tmp/shot.png",
                 "mime": "image/png",
                 "data": "aGVsbG8=",
+            },
+        )
+
+    def test_to_json_marks_native_attachments(self) -> None:
+        self.assertEqual(
+            agent.to_json(Image("x.png", "image/png", "aGVsbG8=")),
+            {
+                "__agent_kind__": "attachment",
+                "path": "x.png",
+                "mime": "image/png",
+                "data": "aGVsbG8=",
+            },
+        )
+        self.assertEqual(
+            agent.to_json(
+                FetchResult(
+                    "https://example.com/x.png",
+                    "Image fetched successfully",
+                    kind="attachment",
+                    mime="image/png",
+                    data="aGVsbG8=",
+                )
+            ),
+            {
+                "__agent_kind__": "attachment",
+                "path": "https://example.com/x.png",
+                "url": "https://example.com/x.png",
+                "mime": "image/png",
+                "data": "aGVsbG8=",
+                "text": "Image fetched successfully",
+                "title": "",
             },
         )
 
