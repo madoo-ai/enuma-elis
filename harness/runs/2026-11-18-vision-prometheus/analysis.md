@@ -1,5 +1,7 @@
 # Vision run, 2026-11-18
 
+Upstream issue: https://github.com/madoo-ai/manus-dei/issues/153
+
 Model `litellm/prometheus` (`openai/deepseek-v4.1-flash`), agent
 `python-experiment`, modules `fs,mutate,browser`. The server ran the fork in
 `manus-dei/base:latest` with the normal bwrap sandbox.
