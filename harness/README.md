@@ -67,8 +67,8 @@ What it sets up:
 - `OPENCODE_GOAL_REQUIRED=false` for a test session; override it to match the
   fleet.
 - A `python-experiment` agent with `toolset: [python]` and all v1 Python
-  modules, including `agents.tasks.run`. `goal` and `question` are left out so
-  a test cannot block on an authorization prompt.
+  modules, including `agents.tasks.run` and `browser`. `goal` and `question`
+  are left out so a test cannot block on an authorization prompt.
 
 Pass `OPENCODE_API_KEY` and `LITELLM_BASE_URL` from the host if you want real
 model calls; otherwise the server starts and health works, but a prompt cannot
@@ -124,6 +124,32 @@ The Phase 2 `task` check is in
 One Python program called `agents.tasks.run("explore", ...)`; the child returned
 the file listing, and the adapter wrote the child transcript to
 `.manus/tasks/<session>.jsonl`. Task time was 8.3 s; one of two task calls used.
+
+## Browser run
+
+The browser is a real session browser, not a headless test fixture. `Xvnc` and
+Chromium start on the first call; the human would see the same page. The first
+call can take a second or two while the display becomes ready.
+
+```bash
+PYTHON_MODULES=fs,mutate,browser ./harness/serve.sh
+```
+
+Prompt it with a local or public page, for example:
+
+> Open `https://example.com`, take a snapshot, read the title, take a screenshot,
+> then go back. Return what you observed.
+
+The Python program uses `browser.page()`. It never receives a CDP port or a
+browser handle, so it cannot attach to a different Chromium. Screenshot bytes
+cross as base64 when the host can read the saved file; the path is present
+either way.
+
+The first recorded run is
+[`runs/2026-11-18-browser-prometheus/`](runs/2026-11-18-browser-prometheus/analysis.md).
+One Python call made six `browser.call` child calls, returned the title, an
+attribute, visibility, and a 4,472-byte screenshot, with
+`{rawOpen: 0, rawExec: 0, rawNet: 0}`.
 
 ## Experiment arms
 

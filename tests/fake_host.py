@@ -38,6 +38,7 @@ class FakeHost:
             "state.skills.load": self.skill,
             "state.todos.write": self.todos,
             "agents.tasks.run": self.task,
+            "browser.call": self.browser,
             "test.echo": lambda payload: payload,
             "test.fail": self.fail,
             "test.sleep": self.sleep,
@@ -45,6 +46,7 @@ class FakeHost:
         if handlers:
             self.handlers.update(handlers)
 
+        self.calls: list[tuple[str, dict[str, Any]]] = []
         self._write_lock = threading.Lock()
         self._thread = threading.Thread(target=self._serve, name="fake-host", daemon=True)
         self.client: Client | None = None
@@ -105,6 +107,7 @@ class FakeHost:
         call_id = message["id"]
         tool = message["tool"]
         payload = message.get("input") or {}
+        self.calls.append((tool, payload))
         handler = self.handlers.get(tool)
         if handler is None:
             self._send(
@@ -229,6 +232,31 @@ class FakeHost:
             "background": False,
             "model": "litellm/prometheus",
         }
+
+    def browser(self, payload: dict[str, Any]) -> dict[str, Any]:
+        action = str(payload.get("action", ""))
+        if action == "screenshot":
+            return {
+                "action": action,
+                "text": "/tmp/shot.png",
+                "path": "/tmp/shot.png",
+                "mime": "image/png",
+                "data": "aGVsbG8=",
+            }
+        if action == "get":
+            what = str(payload.get("what", ""))
+            if what == "title":
+                return {"action": action, "text": json.dumps({"title": "Example Domain"})}
+            if what == "attr":
+                return {"action": action, "text": json.dumps({"value": "go"})}
+            if what == "styles":
+                return {"action": action, "text": json.dumps({"styles": {"display": "block"}})}
+        if action == "is":
+            return {
+                "action": action,
+                "text": json.dumps({str(payload.get("what", "visible")): True}),
+            }
+        return {"action": action, "text": f"{action} ok"}
 
     def fail(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"__error__": {"kind": "permission_denied", "message": "nope"}}

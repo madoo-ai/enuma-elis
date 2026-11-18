@@ -17,7 +17,7 @@ sudo -n chown -R ubuntu:ubuntu /home/ubuntu/workspace
 
 export OPENCODE_PYTHON_CODE_MODE="${OPENCODE_PYTHON_CODE_MODE:-true}"
 export OPENCODE_GOAL_REQUIRED="${MANUS_GOAL_REQUIRED:-false}"
-export MODULES="${PYTHON_MODULES:-fs,mutate,shell,web,state,agents}"
+export MODULES="${PYTHON_MODULES:-fs,mutate,shell,web,state,agents,browser}"
 export OPENCODE_CONFIG_CONTENT="$(python3 - <<'PY'
 import json
 import os
@@ -29,7 +29,9 @@ Every program must define Run(ctx, a). Call the SDK inside Run, never at module 
 
 Use the SDK modules for file, process, and network work. Do not use raw open(), subprocess, os.system, or sockets to replace a typed tool. Return values are the result; print is a log. Each program gets a fresh /tmp; use the workspace for persistent state.
 
-Verify before you claim. If a capability is unavailable, say what you could not check. Leave only the requested artifact; put test files in /tmp."""
+Verify before you claim. If a capability is unavailable, say what you could not check. Leave only the requested artifact; put test files in /tmp.
+
+The browser is the session's one shared Chromium. Use browser.page(), take a snapshot before acting, and use @refs. It has no launch, connect, close, or tab-close call; the human can see and drive the same page."""
 config = {
     "model": "litellm/prometheus",
     "provider": {

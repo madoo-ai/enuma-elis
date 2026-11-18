@@ -296,12 +296,39 @@ class Todo:
 
 
 @dataclass(frozen=True)
+class Screenshot:
+    path: str
+    mime: str = "image/png"
+    data: str = ""
+
+    @property
+    def bytes(self) -> bytes:
+        """Decode the host-provided base64 image, when present."""
+
+        if not self.data:
+            return b""
+        import base64
+
+        return base64.b64decode(self.data)
+
+
+@dataclass(frozen=True)
 class TaskResult:
     session_id: str
     output: str
     transcript_path: str | None = None
     background: bool = False
     model: str | None = None
+
+
+def parse_screenshot(data: Any) -> Screenshot:
+    value = _object(data, "screenshot")
+    path = value.get("path") or value.get("text") or ""
+    return Screenshot(
+        path=str(path),
+        mime=str(value.get("mime", "image/png")),
+        data=str(value.get("data", "")),
+    )
 
 
 def parse_task(data: Any) -> TaskResult:

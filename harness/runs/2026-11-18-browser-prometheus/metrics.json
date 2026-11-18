@@ -1,0 +1,36 @@
+{
+  "source": "session.json",
+  "steps": 2,
+  "tools": {
+    "python": 1
+  },
+  "childTools": {
+    "browser.call": 6
+  },
+  "tokens": {
+    "input": 1683,
+    "output": 340,
+    "reasoning": 216,
+    "cacheRead": 1792
+  },
+  "cost": 0.0,
+  "errors": 0,
+  "audit": {
+    "rawOpen": 0,
+    "rawExec": 0,
+    "rawNet": 0
+  },
+  "filesChanged": [],
+  "durationSeconds": 9.7,
+  "finalText": "Done \u2014 the probe ran in a single Python program:\n\n| Field | Value |\n|---|---|\n| `title` | `Probe` |\n| `attr` (`#go` \u2192 `id`) | `go` |\n| `visible` (`#go`) | `true` |\n| `shot_path` | `/tmp/browser-check.png` |\n| `shot_bytes` | `4472` |\n\nThe `data:` URL page loaded, the title and `id` attribute were read correctly, the button was detected as visible, and the screenshot was written to `/tmp/browser-check.png` (4,472 bytes reported by the returned `shot` object). No raw `open`, `subprocess`, or sockets were used \u2014 all work went through the `browser` SDK.",
+  "workspace": [
+    {
+      "path": "README.md",
+      "bytes": 49
+    },
+    {
+      "path": "sample.txt",
+      "bytes": 24
+    }
+  ]
+}

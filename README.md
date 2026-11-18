@@ -7,10 +7,11 @@ tools through a typed module tree. The host runs the program in `bwrap`, mediate
 every tool call through the fork's permission and goal-gate path, and returns one
 result.
 
-Status: **Phase 1 in progress** — the v1 Python modules, the fork catalog with
-V1 adapters, top-level `toolset` and `python.modules` gating, snapshot diffing,
-and audit summary are implemented. Tool-manifest generation and the experiment
-run are next.
+Status: **Phase 1** — every V1 programmatic native tool now has a Python
+surface, including the shared browser. The fork catalog with V1 adapters,
+top-level `toolset` and `python.modules` gating, snapshot diffing, audit
+summary, and tool-manifest generation are implemented. LSP is deliberately
+deferred; the experiment run is next.
 
 What works now:
 
@@ -23,6 +24,11 @@ What works now:
 - `agent.state` — `skills.load` and `todos.write`.
 - `agent.agents` — `tasks.run` with the child session, final output, transcript
   path, a two-call budget, and a longer program timeout.
+- `agent.browser` — a `Page` façade over the session's single Chromium:
+  navigation, snapshots, semantic locators, actions, waits, tabs, screenshots,
+  PDF, console/errors, network, vitals, evaluate, and low-level mouse input.
+  It has no browser endpoint and no launch, connect, or close method; the host
+  resolves the one browser it owns for every call.
 - `tests/fake_host.py` — a Python host over a socketpair; no fork needed.
 - `tests/test_stdio.py` — the real stdio path the fork adapter uses.
 - Fork adapter at `me-when-agents/packages/opencode/src/tool/python/` — `python`
@@ -31,13 +37,16 @@ What works now:
   description, `tool-manifest` export, snapshot diff, audit summary, and tests.
 
 Not yet: the runtime volume build, the experiment arms, full input/output
-schemas in the manifest, and the MCP/plugin surface.
+schemas in the manifest, and the MCP/plugin surface. The browser harness run is
+recorded in
+[`harness/runs/2026-11-18-browser-prometheus/`](harness/runs/2026-11-18-browser-prometheus/analysis.md).
+LSP is not planned for this phase.
 
 ## Layout
 
 | Path | Purpose |
 | --- | --- |
-| `agent/` | Python SDK package (`Client`, bridge, `fs`, `mutate`, `shell`, `web`, `state`) |
+| `agent/` | Python SDK package (`Client`, bridge, `fs`, `mutate`, `shell`, `web`, `state`, `agents`, `browser`) |
 | `spec/` | Wire protocol, tool-manifest schema, sandbox policy |
 | `runtime/` | Runtime build notes and `sitecustomize.py` audit hook |
 | `tests/` | Zero-dependency smoke tests |
