@@ -183,6 +183,11 @@ Native `read` and `webfetch` attachments are covered by
 An image read from the workspace and the same image fetched over local HTTP both
 arrived as model attachments; the model read `VISION-OK-739` from both.
 
+Detached subagent jobs are covered by
+[`runs/2026-11-18-detached-task-prometheus/`](runs/2026-11-18-detached-task-prometheus/analysis.md).
+`agents.tasks.start(...)` returned a job handle immediately, the child finished,
+and the host injected its result into the parent session.
+
 The harness model config must declare `attachment: true` and
 `modalities.input: ["text", "image"]`; otherwise opencode hides media from the
 model even when the provider supports vision.

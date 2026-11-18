@@ -225,6 +225,11 @@ of using bytes copied from the browser call.
   [vision run](../harness/runs/2026-11-18-vision-prometheus/analysis.md) reads
   `VISION-OK-739` and `#123456` from a canvas screenshot. This proves the
   attachment reaches the model as media, not text.
+- Detached tasks: the
+  [task-start run](../harness/runs/2026-11-18-detached-task-prometheus/analysis.md)
+  starts a subagent, returns a job handle, and receives the child result as a
+  session notification. The fork's `OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS`
+  flag gates it.
 
 ## 2. LSP
 

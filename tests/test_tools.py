@@ -6,7 +6,7 @@ import unittest
 
 from agent import agents, fs, mutate, shell, state, web
 from agent._errors import AgentError
-from agent._types import EditResult, GlobResult, GrepResult, Skill, TaskResult, Todo
+from agent._types import EditResult, GlobResult, GrepResult, Skill, TaskJob, TaskResult, Todo
 from fake_host import FakeHost
 
 
@@ -141,7 +141,20 @@ class StateTest(unittest.TestCase):
             self.assertEqual(result.output, "child finished")
             self.assertEqual(result.model, "litellm/prometheus")
 
-    def test_background_task_is_refused(self) -> None:
+    def test_task_start_is_detached(self) -> None:
+        with FakeHost() as host:
+            assert host.client is not None
+            with host.client:
+                job = agents.tasks.start("explore", "find the tool catalog", "catalog")
+            self.assertIsInstance(job, TaskJob)
+            self.assertEqual(job.session_id, "ses_child_demo")
+            self.assertEqual(job.job_id, "ses_child_demo")
+            self.assertEqual(job.description, "catalog")
+            self.assertEqual(job.status, "running")
+            self.assertTrue(job.background)
+            self.assertEqual(job.model, "litellm/prometheus")
+
+    def test_background_run_is_refused(self) -> None:
         with self.assertRaises(AgentError) as caught:
             agents.tasks.run("explore", "find it", background=True)
         self.assertEqual(caught.exception.kind, "unavailable")

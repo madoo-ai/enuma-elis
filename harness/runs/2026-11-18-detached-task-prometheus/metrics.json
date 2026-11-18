@@ -1,0 +1,38 @@
+{
+  "source": "session.json",
+  "steps": 4,
+  "tools": {
+    "python": 3
+  },
+  "childTools": {
+    "agents.tasks.start": 1,
+    "fs.glob": 1,
+    "fs.read": 1
+  },
+  "tokens": {
+    "input": 3138,
+    "output": 412,
+    "reasoning": 964,
+    "cacheRead": 4864
+  },
+  "cost": 0.0,
+  "errors": 0,
+  "audit": {
+    "rawOpen": 0,
+    "rawExec": 0,
+    "rawNet": 0
+  },
+  "filesChanged": [],
+  "durationSeconds": 14.3,
+  "finalText": "Background task **`read-readme`** (`ses_e10f9e155ffeAVczExMmBBiZ4X`) completed.\n\n**Child result:**\n- First line of `README.md`:\n\n```\n# enuma-elis harness\n```\n\nThe child also noted `README.md` is 2 lines, `sample.txt` contains `TODO: replace this line`, the git tree is clean (single commit `d5c2287 fixture`), and no `AGENTS.md`/`opencode.json`/`.opencode/` exist.\n\nI independently verified the README's first line in the workspace and it matches.",
+  "workspace": [
+    {
+      "path": "README.md",
+      "bytes": 49
+    },
+    {
+      "path": "sample.txt",
+      "bytes": 24
+    }
+  ]
+}

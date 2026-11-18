@@ -347,6 +347,16 @@ class TaskResult:
     model: str | None = None
 
 
+@dataclass(frozen=True)
+class TaskJob:
+    session_id: str
+    job_id: str
+    description: str = ""
+    status: str = "running"
+    background: bool = True
+    model: str | None = None
+
+
 def parse_screenshot(data: Any) -> Screenshot:
     value = _object(data, "screenshot")
     path = value.get("path") or value.get("text") or ""
@@ -364,6 +374,18 @@ def parse_task(data: Any) -> TaskResult:
         output=str(value.get("output", "")),
         transcript_path=str(value["transcript_path"]) if value.get("transcript_path") else None,
         background=bool(value.get("background", False)),
+        model=str(value["model"]) if value.get("model") else None,
+    )
+
+
+def parse_task_job(data: Any) -> TaskJob:
+    value = _object(data, "task_job")
+    return TaskJob(
+        session_id=str(value.get("session_id", "")),
+        job_id=str(value.get("job_id", value.get("session_id", ""))),
+        description=str(value.get("description", "")),
+        status=str(value.get("status", "running")),
+        background=bool(value.get("background", True)),
         model=str(value["model"]) if value.get("model") else None,
     )
 

@@ -38,6 +38,7 @@ class FakeHost:
             "state.skills.load": self.skill,
             "state.todos.write": self.todos,
             "agents.tasks.run": self.task,
+            "agents.tasks.start": self.task_start,
             "browser.call": self.browser,
             "test.echo": lambda payload: payload,
             "test.fail": self.fail,
@@ -261,6 +262,16 @@ class FakeHost:
             "output": "child finished",
             "transcript_path": "/home/ubuntu/workspace/.manus/tasks/ses_child_demo.jsonl",
             "background": False,
+            "model": "litellm/prometheus",
+        }
+
+    def task_start(self, payload: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "session_id": "ses_child_demo",
+            "job_id": "ses_child_demo",
+            "description": payload.get("description", "python task"),
+            "status": "running",
+            "background": True,
             "model": "litellm/prometheus",
         }
 

@@ -25,7 +25,9 @@ What works now:
   attachment as a `FetchResult` with `.bytes`.
 - `agent.state` — `skills.load` and `todos.write`.
 - `agent.agents` — `tasks.run` with the child session, final output, transcript
-  path, a two-call budget, and a longer program timeout.
+  path, a two-call budget, and a longer program timeout. `tasks.start` launches
+  a detached subagent and returns a job handle; the host notifies the session
+  when it finishes.
 - `agent.browser` — a `Page` façade over the session's single Chromium:
   navigation, snapshots, semantic locators, actions, waits, tabs, screenshots,
   PDF, console/errors, network, vitals, evaluate, and low-level mouse input.
