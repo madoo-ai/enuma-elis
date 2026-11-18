@@ -670,6 +670,9 @@ MCP and plugin/custom tools. Not in v1.
 - `./harness/run.sh` runs the SDK and bwrap inside `manus-dei/base:latest`. It
   found that Docker's default seccomp blocks bwrap and that the run directory
   must be bound at `/tmp/agent` after `--tmpfs /tmp`.
+- `./harness/build.sh` builds the fork inside the base image; a host build
+  needs glibc 2.44 and ICU 78 and fails in the base. `./harness/serve.sh`
+  publishes `opencode serve` on `127.0.0.1:${PORT}` (default 4096).
 
 ## 13. Risks
 

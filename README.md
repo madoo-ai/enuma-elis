@@ -70,6 +70,15 @@ the stdio protocol, typed tools, raw-write audit, and the read-only root. See
 Docker's default seccomp blocks bwrap user namespaces, and the run directory
 must be bound under the private `/tmp` tmpfs.
 
+The serve harness builds the fork inside the base image (a host build needs a
+newer glibc and ICU) and publishes the server port:
+
+```bash
+./harness/build.sh
+./harness/serve.sh          # http://127.0.0.1:4096/global/health
+PORT=4097 ./harness/serve.sh
+```
+
 ## Notes
 
 - The test fixture is `me-when-agents/`, a full copy of the fork. It is ignored by
