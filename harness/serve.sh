@@ -10,7 +10,11 @@ PORT="${PORT:-4096}"
 TMPROOT="${TMPDIR:-/tmp/opencode}"
 mkdir -p "$TMPROOT"
 WORK="$(mktemp -d "$TMPROOT/enuma-serve.XXXXXX")"
-trap 'rm -rf "$WORK"' EXIT
+if [ "${KEEP_WORKSPACE:-0}" != "1" ]; then
+  trap 'rm -rf "$WORK"' EXIT
+else
+  echo "workspace kept: $WORK"
+fi
 
 if [ ! -x "$BIN" ] || [ "$(cat "$STAMP" 2>/dev/null || true)" != "$IMAGE" ]; then
   echo "building opencode inside $IMAGE..."

@@ -16,13 +16,31 @@ sudo -n mkdir -p /home/ubuntu/workspace
 sudo -n chown -R ubuntu:ubuntu /home/ubuntu/workspace
 
 export OPENCODE_PYTHON_CODE_MODE=true
-export OPENCODE_GOAL_REQUIRED="${OPENCODE_GOAL_REQUIRED:-false}"
+export OPENCODE_GOAL_REQUIRED=false
 export OPENCODE_CONFIG_CONTENT='{
+  "model": "litellm/prometheus",
+  "provider": {
+    "litellm": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "LiteLLM",
+      "options": {
+        "baseURL": "{env:LITELLM_BASE_URL}",
+        "apiKey": "{env:OPENCODE_API_KEY}"
+      },
+      "models": {
+        "prometheus": {
+          "name": "Prometheus",
+          "limit": { "context": 1000000, "output": 384000 }
+        }
+      }
+    }
+  },
   "agent": {
     "python-experiment": {
       "mode": "primary",
+      "model": "litellm/prometheus",
       "description": "Python code mode experiment",
-      "toolset": ["python", "goal", "question"],
+      "toolset": ["python"],
       "python": { "modules": ["fs", "mutate", "shell", "web", "state"] }
     }
   }

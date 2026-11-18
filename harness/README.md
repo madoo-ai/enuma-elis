@@ -66,13 +66,17 @@ What it sets up:
 - `OPENCODE_PYTHON_CODE_MODE=true`.
 - `OPENCODE_GOAL_REQUIRED=false` for a test session; override it to match the
   fleet.
-- A `python-experiment` agent with
-  `toolset: [python, goal, question]` and all v1 Python modules.
+- A `python-experiment` agent with `toolset: [python]` and all v1 Python
+  modules. `goal` and `question` are left out so a test cannot block on an
+  authorization prompt.
 
 Pass `OPENCODE_API_KEY` and `LITELLM_BASE_URL` from the host if you want real
 model calls; otherwise the server starts and health works, but a prompt cannot
 reach a provider. Set `OPENCODE_SERVER_PASSWORD` before exposing the port
 beyond localhost; the server warns when it is unset.
+
+`KEEP_WORKSPACE=1` keeps the temp workspace after the server exits, so you can
+inspect the artifacts.
 
 Health check:
 
@@ -80,3 +84,32 @@ Health check:
 curl -s http://127.0.0.1:4096/global/health
 # {"healthy":true,"version":"0.4.18"}
 ```
+
+## First real run
+
+Prompt: build a small to-do app, one HTML file, add/complete/delete, persisted
+in localStorage.
+
+Model `litellm/prometheus`, agent `python-experiment`, toolset `[python]`.
+
+Result:
+
+- `index.html`, 5,355 bytes.
+- 64 child tool calls: `shell.run` 57, `fs.read` 4, `fs.glob` 2,
+  `mutate.write` 1.
+- The model started `python3 -m http.server`, drove the page with
+  `agent-browser`, added two items, checked localStorage, reloaded, completed
+  one item, deleted both, and checked the empty state.
+- Raw audit counters were `{rawOpen: 0, rawExec: 0, rawNet: 0}`: all file work
+  went through typed tools, not `open()`.
+- One program-level `SyntaxError` (`return` outside `Run`) was fixed by the
+  model on the next call.
+
+Two environment notes from this run:
+
+- The deploy env's `OPENCODE_API_KEY` is an `oc_` Zen key; LiteLLM rejects it.
+  A temporary key scoped to `prometheus` was minted with the management key
+  from `ref/litellm.md`; the harness injects it only for the test.
+- `manus-dei/base:latest` currently loads `opencode/deepseek-v4.1-flash`, not
+  the `litellm` provider from `templates/base/opencode.json`. The serve
+  harness injects the LiteLLM provider through `OPENCODE_CONFIG_CONTENT`.
