@@ -67,8 +67,8 @@ What it sets up:
 - `OPENCODE_GOAL_REQUIRED=false` for a test session; override it to match the
   fleet.
 - A `python-experiment` agent with `toolset: [python]` and all v1 Python
-  modules. `goal` and `question` are left out so a test cannot block on an
-  authorization prompt.
+  modules, including `agents.tasks.run`. `goal` and `question` are left out so
+  a test cannot block on an authorization prompt.
 
 Pass `OPENCODE_API_KEY` and `LITELLM_BASE_URL` from the host if you want real
 model calls; otherwise the server starts and health works, but a prompt cannot
@@ -116,3 +116,11 @@ Two environment notes from this run:
 - `manus-dei/base:latest` currently loads `opencode/deepseek-v4.1-flash`, not
   the `litellm` provider from `templates/base/opencode.json`. The serve
   harness injects the LiteLLM provider through `OPENCODE_CONFIG_CONTENT`.
+
+## Task run
+
+The Phase 2 `task` check is in
+[`runs/2026-11-18-task-prometheus/`](runs/2026-11-18-task-prometheus/analysis.md).
+One Python program called `agents.tasks.run("explore", ...)`; the child returned
+the file listing, and the adapter wrote the child transcript to
+`.manus/tasks/<session>.jsonl`. Task time was 8.3 s; one of two task calls used.

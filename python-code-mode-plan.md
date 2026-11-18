@@ -1,7 +1,7 @@
 # Python code mode: build plan
 
 Status: accepted design, build plan.
-Progress: Phase 0 and the Phase 1 tool set, catalog, model/provider filtering, manifest index, gating, snapshot diff, and audit summary are implemented. The runtime volume, manifest schemas, and experiment arms remain.
+Progress: Phase 0, Phase 1, and the Phase 2 `task` tool are implemented. Experiment arms 0/A/B/C, the runtime volume, and manifest schemas remain.
 Scope: a separate Python runtime/SDK repository and the adapter inside the manica-dei/opencode fork.
 
 ## 0. Decisions

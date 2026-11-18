@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import unittest
 
-from agent import fs, mutate, shell, state, web
+from agent import agents, fs, mutate, shell, state, web
 from agent._errors import AgentError
-from agent._types import EditResult, GlobResult, GrepResult, Skill, Todo
+from agent._types import EditResult, GlobResult, GrepResult, Skill, TaskResult, Todo
 from fake_host import FakeHost
 
 
@@ -110,6 +110,21 @@ class StateTest(unittest.TestCase):
                 result = state.todos.write([Todo("write tests", "pending", "high")])
             self.assertEqual(result[0].content, "write tests")
             self.assertEqual(result[0].priority, "high")
+
+    def test_task(self) -> None:
+        with FakeHost() as host:
+            assert host.client is not None
+            with host.client:
+                result = agents.tasks.run("explore", "find the tool catalog")
+            self.assertIsInstance(result, TaskResult)
+            self.assertEqual(result.session_id, "ses_child_demo")
+            self.assertEqual(result.output, "child finished")
+            self.assertEqual(result.model, "litellm/prometheus")
+
+    def test_background_task_is_refused(self) -> None:
+        with self.assertRaises(AgentError) as caught:
+            agents.tasks.run("explore", "find it", background=True)
+        self.assertEqual(caught.exception.kind, "unavailable")
 
 
 if __name__ == "__main__":

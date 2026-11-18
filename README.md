@@ -21,6 +21,8 @@ What works now:
 - `agent.shell` — typed `run` with `workdir`, timeout, and `check`.
 - `agent.web` — typed `fetch` and `search`.
 - `agent.state` — `skills.load` and `todos.write`.
+- `agent.agents` — `tasks.run` with the child session, final output, transcript
+  path, a two-call budget, and a longer program timeout.
 - `tests/fake_host.py` — a Python host over a socketpair; no fork needed.
 - `tests/test_stdio.py` — the real stdio path the fork adapter uses.
 - Fork adapter at `me-when-agents/packages/opencode/src/tool/python/` — `python`

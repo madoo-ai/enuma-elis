@@ -295,6 +295,26 @@ class Todo:
     priority: str
 
 
+@dataclass(frozen=True)
+class TaskResult:
+    session_id: str
+    output: str
+    transcript_path: str | None = None
+    background: bool = False
+    model: str | None = None
+
+
+def parse_task(data: Any) -> TaskResult:
+    value = _object(data, "task")
+    return TaskResult(
+        session_id=str(value.get("session_id", "")),
+        output=str(value.get("output", "")),
+        transcript_path=str(value["transcript_path"]) if value.get("transcript_path") else None,
+        background=bool(value.get("background", False)),
+        model=str(value["model"]) if value.get("model") else None,
+    )
+
+
 def parse_skill(data: Any) -> Skill:
     value = _object(data, "skill")
     return Skill(

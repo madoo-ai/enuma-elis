@@ -15,36 +15,45 @@ sudo -n chmod -R a+rX /opt/manus/python
 sudo -n mkdir -p /home/ubuntu/workspace
 sudo -n chown -R ubuntu:ubuntu /home/ubuntu/workspace
 
-export OPENCODE_PYTHON_CODE_MODE=true
-export OPENCODE_GOAL_REQUIRED=false
-export OPENCODE_CONFIG_CONTENT='{
-  "model": "litellm/prometheus",
-  "provider": {
-    "litellm": {
-      "npm": "@ai-sdk/openai-compatible",
-      "name": "LiteLLM",
-      "options": {
-        "baseURL": "{env:LITELLM_BASE_URL}",
-        "apiKey": "{env:OPENCODE_API_KEY}"
-      },
-      "models": {
-        "prometheus": {
-          "name": "Prometheus",
-          "limit": { "context": 1000000, "output": 384000 }
+export OPENCODE_PYTHON_CODE_MODE="${OPENCODE_PYTHON_CODE_MODE:-true}"
+export OPENCODE_GOAL_REQUIRED="${MANUS_GOAL_REQUIRED:-false}"
+export MODULES="${PYTHON_MODULES:-fs,mutate,shell,web,state,agents}"
+export OPENCODE_CONFIG_CONTENT="$(python3 - <<'PY'
+import json
+import os
+
+modules = [item for item in os.environ["MODULES"].split(",") if item]
+config = {
+    "model": "litellm/prometheus",
+    "provider": {
+        "litellm": {
+            "npm": "@ai-sdk/openai-compatible",
+            "name": "LiteLLM",
+            "options": {
+                "baseURL": "{env:LITELLM_BASE_URL}",
+                "apiKey": "{env:OPENCODE_API_KEY}",
+            },
+            "models": {
+                "prometheus": {
+                    "name": "Prometheus",
+                    "limit": {"context": 1_000_000, "output": 384_000},
+                }
+            },
         }
-      }
-    }
-  },
-  "agent": {
-    "python-experiment": {
-      "mode": "primary",
-      "model": "litellm/prometheus",
-      "description": "Python code mode experiment",
-      "toolset": ["python"],
-      "python": { "modules": ["fs", "mutate", "shell", "web", "state"] }
-    }
-  }
-}'
+    },
+    "agent": {
+        "python-experiment": {
+            "mode": "primary",
+            "model": "litellm/prometheus",
+            "description": "Python code mode experiment",
+            "toolset": ["python"],
+            "python": {"modules": modules},
+        }
+    },
+}
+print(json.dumps(config))
+PY
+)"
 
 exec sudo -n -u ubuntu -H env \
   OPENCODE_PYTHON_CODE_MODE="$OPENCODE_PYTHON_CODE_MODE" \
@@ -52,4 +61,6 @@ exec sudo -n -u ubuntu -H env \
   OPENCODE_CONFIG_CONTENT="$OPENCODE_CONFIG_CONTENT" \
   OPENCODE_API_KEY="${OPENCODE_API_KEY:-}" \
   LITELLM_BASE_URL="${LITELLM_BASE_URL:-}" \
+  OPENCODE_PYTHON_NETWORK="${OPENCODE_PYTHON_NETWORK:-true}" \
+  OPENCODE_PYTHON_WORKSPACE="${OPENCODE_PYTHON_WORKSPACE:-rw}" \
   /bin/bash -c 'cd /home/ubuntu/workspace && exec /opt/opencode serve --hostname 0.0.0.0 --port 4096'

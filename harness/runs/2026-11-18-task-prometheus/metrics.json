@@ -1,0 +1,34 @@
+{
+  "parentSession": "ses_e122e5d3cffeWmrASgPcw2tNce",
+  "childSession": "ses_e122e4a33ffejD4OtM4QKUu3LK",
+  "childAgent": "explore",
+  "model": "litellm/prometheus",
+  "pythonToolCalls": 1,
+  "taskCalls": 1,
+  "taskDurationMs": 8303,
+  "taskBudget": 2,
+  "programTimeoutMs": 900000,
+  "childTranscript": "workspace/.manus/tasks/ses_e122e4a33ffejD4OtM4QKUu3LK.jsonl",
+  "childTranscriptBytes": 7448,
+  "childOutputFiles": 2,
+  "tokens": {
+    "parent": {
+      "input": 543,
+      "output": 344,
+      "reasoning": 420,
+      "cacheRead": 3840
+    },
+    "child": {
+      "input": 6578,
+      "output": 228,
+      "reasoning": 81,
+      "cacheRead": 12800
+    }
+  },
+  "cost": 0,
+  "audit": {
+    "rawOpen": 0,
+    "rawExec": 0,
+    "rawNet": 0
+  }
+}
