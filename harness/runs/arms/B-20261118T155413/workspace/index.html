@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>To-do</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f6f4;
+    --surface: #ffffff;
+    --text: #1d1d1b;
+    --muted: #6b6b66;
+    --line: #e2e2de;
+    --accent: #2f6f4f;
+    --danger: #b3402f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a;
+      --surface: #202226;
+      --text: #ececea;
+      --muted: #9a9a94;
+      --line: #33363b;
+      --accent: #6fbf94;
+      --danger: #e0776a;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 3rem 1rem;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main {
+    width: 100%;
+    max-width: 34rem;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 1.75rem;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+  }
+  h1 { margin: 0 0 0.25rem; font-size: 1.5rem; }
+  .hint { margin: 0 0 1.25rem; color: var(--muted); font-size: 0.9rem; }
+  form { display: flex; gap: 0.5rem; }
+  input[type="text"] {
+    flex: 1;
+    min-width: 0;
+    padding: 0.65rem 0.75rem;
+    font: inherit;
+    color: inherit;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+  }
+  input[type="text"]:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 9px;
+    border: 1px solid transparent;
+  }
+  .add {
+    padding: 0.65rem 1.1rem;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  .add:disabled { opacity: 0.45; cursor: default; }
+  ul { list-style: none; margin: 1.25rem 0 0; padding: 0; }
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  li:last-child { border-bottom: none; }
+  li input[type="checkbox"] {
+    width: 1.15rem;
+    height: 1.15rem;
+    accent-color: var(--accent);
+    flex: none;
+    cursor: pointer;
+  }
+  .label {
+    flex: 1;
+    overflow-wrap: anywhere;
+  }
+  li.done .label { color: var(--muted); text-decoration: line-through; }
+  .delete {
+    flex: none;
+    padding: 0.2rem 0.5rem;
+    background: transparent;
+    color: var(--muted);
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+  .delete:hover { color: var(--danger); }
+  .empty { margin: 1.5rem 0 0; color: var(--muted); text-align: center; }
+  .count { margin: 1rem 0 0; color: var(--muted); font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>To-do</h1>
+  <p class="hint">Saved in this browser.</p>
+
+  <form id="add-form" autocomplete="off">
+    <input id="new-todo" type="text" placeholder="What needs doing?" aria-label="New to-do" maxlength="500">
+    <button class="add" type="submit" id="add-btn" disabled>Add</button>
+  </form>
+
+  <ul id="list" aria-label="To-dos"></ul>
+  <p class="empty" id="empty" hidden>Nothing here yet.</p>
+  <p class="count" id="count" hidden></p>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var STORAGE_KEY = "todo.items.v1";
+  var form = document.getElementById("add-form");
+  var input = document.getElementById("new-todo");
+  var addBtn = document.getElementById("add-btn");
+  var list = document.getElementById("list");
+  var empty = document.getElementById("empty");
+  var count = document.getElementById("count");
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return [];
+      var parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed
+        .filter(function (item) {
+          return item && typeof item.text === "string";
+        })
+        .map(function (item) {
+          return {
+            id: typeof item.id === "string" ? item.id : makeId(),
+            text: item.text,
+            done: item.done === true
+          };
+        });
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    } catch (err) {
+      /* Storage can be unavailable or full; the list still works for this session. */
+    }
+  }
+
+  function makeId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    return Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
+  }
+
+  var items = load();
+
+  function render() {
+    list.textContent = "";
+
+    items.forEach(function (item) {
+      var li = document.createElement("li");
+      li.dataset.id = item.id;
+      if (item.done) li.className = "done";
+
+      var checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = item.done;
+      checkbox.setAttribute("aria-label", "Mark \"" + item.text + "\" as " + (item.done ? "incomplete" : "complete"));
+
+      var label = document.createElement("span");
+      label.className = "label";
+      label.textContent = item.text;
+
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "delete";
+      del.textContent = "\u00d7";
+      del.setAttribute("aria-label", "Delete \"" + item.text + "\"");
+
+      li.appendChild(checkbox);
+      li.appendChild(label);
+      li.appendChild(del);
+      list.appendChild(li);
+    });
+
+    empty.hidden = items.length !== 0;
+
+    var remaining = items.filter(function (item) { return !item.done; }).length;
+    var done = items.length - remaining;
+    count.hidden = items.length === 0;
+    count.textContent = remaining + " left" +
+      (done ? " \u00b7 " + done + " done" : "");
+  }
+
+  function addItem(text) {
+    items.push({ id: makeId(), text: text, done: false });
+    save();
+    render();
+  }
+
+  form.addEventListener("submit", function (event) {
+    event.preventDefault();
+    var text = input.value.trim();
+    if (!text) return;
+    addItem(text);
+    input.value = "";
+    addBtn.disabled = true;
+    input.focus();
+  });
+
+  input.addEventListener("input", function () {
+    addBtn.disabled = input.value.trim() === "";
+  });
+
+  list.addEventListener("change", function (event) {
+    var target = event.target;
+    if (target.type !== "checkbox") return;
+    var id = target.closest("li").dataset.id;
+    items = items.map(function (item) {
+      return item.id === id ? { id: item.id, text: item.text, done: target.checked } : item;
+    });
+    save();
+    render();
+  });
+
+  list.addEventListener("click", function (event) {
+    var target = event.target;
+    if (!target.classList.contains("delete")) return;
+    var id = target.closest("li").dataset.id;
+    items = items.filter(function (item) { return item.id !== id; });
+    save();
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

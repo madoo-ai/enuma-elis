@@ -124,3 +124,34 @@ The Phase 2 `task` check is in
 One Python program called `agents.tasks.run("explore", ...)`; the child returned
 the file listing, and the adapter wrote the child transcript to
 `.manus/tasks/<session>.jsonl`. Task time was 8.3 s; one of two task calls used.
+
+## Experiment arms
+
+```bash
+./harness/arms.sh B
+./harness/arms.sh 0 A B C D
+```
+
+Each arm starts a fresh server, runs the same prompt, exports the session,
+copies the workspace (without `.git`), and writes `metrics.json`. The workspace
+is a git fixture now, so `filesChanged` is populated by the snapshot service.
+
+| Arm | Catalog | Python modules | Workspace | Net | Raw exec |
+| --- | --- | --- | --- | --- | --- |
+| 0 | normal, no python | — | rw | on | — |
+| A | python only | fs, mutate, shell, web, state, agents | rw | on | allowed |
+| B | python only | fs, mutate, web, state | rw | on | blocked |
+| C | python only | fs, mutate, web, state | ro | on | blocked |
+| D | python only | fs, mutate, state | ro | off | blocked |
+
+`OPENCODE_PYTHON_BLOCK_RAW_EXEC=1` makes the `sitecustomize` audit hook raise
+`PermissionError` on `subprocess`, `os.system`, and the `os.exec` family after
+recording the attempt. Raw `open()` writes are still allowed in the read-write
+arms; blocking them is the next decision.
+
+The two arm B runs are the clearest data point:
+
+- [Unblocked](runs/arms/B-20261118T154723/analysis.md): 0 typed child calls,
+  6 raw opens, 17 raw execs, claimed Chromium tests.
+- [Blocked](runs/arms/B-20261118T155413/analysis.md): 9 typed child calls, 0 raw
+  opens, 0 raw execs, 41 s, honest structural verification.

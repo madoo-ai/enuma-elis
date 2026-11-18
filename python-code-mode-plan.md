@@ -1,7 +1,7 @@
 # Python code mode: build plan
 
 Status: accepted design, build plan.
-Progress: Phase 0, Phase 1, and the Phase 2 `task` tool are implemented. Experiment arms 0/A/B/C, the runtime volume, and manifest schemas remain.
+Progress: Phase 0, Phase 1, the Phase 2 `task` tool, the arm runner, and the arm B blocked/unblocked comparison are implemented. Arms 0/A/C/D, the runtime volume, and manifest schemas remain.
 Scope: a separate Python runtime/SDK repository and the adapter inside the manica-dei/opencode fork.
 
 ## 0. Decisions
@@ -217,15 +217,16 @@ def Run(ctx, a):
 
 ```python
 # zz_main.py — generated, not shown to the model
-import json, os, sys
+import contextlib, json, os, sys
 import agent
-from program import Run
 
 def main():
     os.makedirs(os.environ.get("HOME", "/tmp/home"), exist_ok=True)
     try:
         with agent.Client() as client:
-            value = Run(None, client)
+            from program import Run
+            with contextlib.redirect_stdout(sys.stderr):
+                value = Run(None, client)
         envelope = {"ok": True, "value": agent.to_json(value)}
     except BaseException as error:
         envelope = {"ok": False, "error": agent.to_error(error)}
@@ -595,15 +596,17 @@ The control arm needs the normal catalog. Do not run it with the `python-experim
 
 ### 10.2 Arms
 
-| Arm | Top-level catalog | `python.modules` | `/workspace` | net | Measures |
-| --- | --- | --- | --- | --- | --- |
-| 0 | normal, no `python` | — | rw | on | control: today's behavior |
-| A | `python`, `goal`, `question` | fs, mutate, shell, web, state | rw | on | baseline code mode |
-| B | `python`, `goal`, `question` | fs, mutate, web, state | rw | on | substitution, no shell module |
-| C | `python`, `goal`, `question` | fs, mutate, web, state | ro | on | forced `mutate` |
-| D | `python`, `goal`, `question` | fs, mutate, state | ro | off | strict typed tools |
+| Arm | Top-level catalog | `python.modules` | `/workspace` | net | raw exec | Measures |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | normal, no `python` | — | rw | on | — | control: today's behavior |
+| A | `python` only | fs, mutate, shell, web, state, agents | rw | on | allowed | baseline code mode |
+| B | `python` only | fs, mutate, web, state | rw | on | blocked | substitution, no shell module |
+| C | `python` only | fs, mutate, web, state | ro | on | blocked | forced `mutate` |
+| D | `python` only | fs, mutate, state | ro | off | blocked | strict typed tools |
 
 Run 0 and B first. 0 gives the baseline; B gives the treatment. A isolates the shell module; C tests whether `mutate` is sufficient when `open()` cannot write; D is the hardened profile.
+
+`AGENT_BLOCK_RAW_EXEC=1` is what makes the B/C/D "no shell" claim real. Without it, arm B ran `subprocess` and `open` directly and claimed browser tests; with it, raw exec went to zero, the model used `mutate`/`fs`, and it described its verification honestly.
 
 ### 10.3 Metrics
 

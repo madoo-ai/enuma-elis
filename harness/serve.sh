@@ -23,6 +23,12 @@ fi
 
 cp -a "$ROOT/harness/fixture/." "$WORK/"
 
+if [ "${GIT_FIXTURE:-1}" = "1" ] && command -v git >/dev/null 2>&1; then
+  git -C "$WORK" init -q
+  git -C "$WORK" -c user.name=harness -c user.email=harness@example.invalid add -A
+  git -C "$WORK" -c user.name=harness -c user.email=harness@example.invalid commit -q -m fixture
+fi
+
 ENVS=()
 [ -n "${OPENCODE_API_KEY:-}" ] && ENVS+=(-e "OPENCODE_API_KEY=$OPENCODE_API_KEY")
 [ -n "${LITELLM_BASE_URL:-}" ] && ENVS+=(-e "LITELLM_BASE_URL=$LITELLM_BASE_URL")
@@ -31,6 +37,7 @@ ENVS=()
 [ -n "${OPENCODE_PYTHON_CODE_MODE:-}" ] && ENVS+=(-e "OPENCODE_PYTHON_CODE_MODE=$OPENCODE_PYTHON_CODE_MODE")
 [ -n "${OPENCODE_PYTHON_NETWORK:-}" ] && ENVS+=(-e "OPENCODE_PYTHON_NETWORK=$OPENCODE_PYTHON_NETWORK")
 [ -n "${OPENCODE_PYTHON_WORKSPACE:-}" ] && ENVS+=(-e "OPENCODE_PYTHON_WORKSPACE=$OPENCODE_PYTHON_WORKSPACE")
+[ -n "${OPENCODE_PYTHON_BLOCK_RAW_EXEC:-}" ] && ENVS+=(-e "OPENCODE_PYTHON_BLOCK_RAW_EXEC=$OPENCODE_PYTHON_BLOCK_RAW_EXEC")
 
 echo "opencode:  $BIN"
 echo "image:     $IMAGE"

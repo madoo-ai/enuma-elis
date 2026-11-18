@@ -8,10 +8,13 @@ backstop.
 
 from __future__ import annotations
 
+import os
 import sys
 from typing import Any
 
 from agent import _bridge
+
+BLOCK_EXEC = os.environ.get("AGENT_BLOCK_RAW_EXEC") == "1"
 
 
 def _hook(event: str, args: tuple[Any, ...]) -> None:
@@ -22,12 +25,16 @@ def _hook(event: str, args: tuple[Any, ...]) -> None:
                 _bridge.emit(
                     {"type": "audit", "kind": "raw_open", "path": str(path), "mode": mode}
                 )
-        elif event in ("subprocess.Popen", "os.system"):
+        elif event in ("subprocess.Popen", "os.system", "os.exec", "os.spawn", "os.posix_spawn"):
             _bridge.emit({"type": "audit", "kind": "raw_exec", "argv": repr(args)})
+            if BLOCK_EXEC:
+                raise PermissionError("raw process execution is disabled in this Python arm")
         elif event == "socket.connect":
             _bridge.emit({"type": "audit", "kind": "raw_net", "address": repr(args)})
+    except PermissionError:
+        raise
     except Exception:
-        # The hook must never break the program.
+        # The hook must never break the program for observation errors.
         pass
 
 

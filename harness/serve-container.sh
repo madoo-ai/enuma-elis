@@ -63,4 +63,5 @@ exec sudo -n -u ubuntu -H env \
   LITELLM_BASE_URL="${LITELLM_BASE_URL:-}" \
   OPENCODE_PYTHON_NETWORK="${OPENCODE_PYTHON_NETWORK:-true}" \
   OPENCODE_PYTHON_WORKSPACE="${OPENCODE_PYTHON_WORKSPACE:-rw}" \
+  OPENCODE_PYTHON_BLOCK_RAW_EXEC="${OPENCODE_PYTHON_BLOCK_RAW_EXEC:-0}" \
   /bin/bash -c 'cd /home/ubuntu/workspace && exec /opt/opencode serve --hostname 0.0.0.0 --port 4096'

@@ -1,34 +1,40 @@
 {
-  "parentSession": "ses_e122e5d3cffeWmrASgPcw2tNce",
-  "childSession": "ses_e122e4a33ffejD4OtM4QKUu3LK",
-  "childAgent": "explore",
-  "model": "litellm/prometheus",
-  "pythonToolCalls": 1,
-  "taskCalls": 1,
-  "taskDurationMs": 8303,
-  "taskBudget": 2,
-  "programTimeoutMs": 900000,
-  "childTranscript": "workspace/.manus/tasks/ses_e122e4a33ffejD4OtM4QKUu3LK.jsonl",
-  "childTranscriptBytes": 7448,
-  "childOutputFiles": 2,
-  "tokens": {
-    "parent": {
-      "input": 543,
-      "output": 344,
-      "reasoning": 420,
-      "cacheRead": 3840
-    },
-    "child": {
-      "input": 6578,
-      "output": 228,
-      "reasoning": 81,
-      "cacheRead": 12800
-    }
+  "source": "session.json",
+  "steps": 2,
+  "tools": {
+    "python": 1
   },
-  "cost": 0,
+  "childTools": {
+    "agents.tasks.run": 1
+  },
+  "tokens": {
+    "input": 543,
+    "output": 344,
+    "reasoning": 420,
+    "cacheRead": 3840
+  },
+  "cost": 0.0,
+  "errors": 0,
   "audit": {
     "rawOpen": 0,
     "rawExec": 0,
     "rawNet": 0
-  }
+  },
+  "filesChanged": [],
+  "durationSeconds": 17.5,
+  "finalText": "The child task ran successfully. Results:\n\n- **Child session id:** `ses_e122e4a33ffejD4OtM4QKUu3LK`\n- **Transcript path:** `/home/ubuntu/workspace/.manus/tasks/ses_e122e4a33ffejD4OtM4QKUu3LK.jsonl`\n- **Child output:**\n\n> Files in `/home/ubuntu/workspace`: **2**\n>\n> - `/home/ubuntu/workspace/README.md` (49 bytes; contains \"# enuma-elis harness\" and \"The sandbox read this file.\")\n> - `/home/ubuntu/workspace/sample.txt` (24 bytes; contains \"TODO: replace this line\")\n>\n> Checked the directory with a full listing (including hidden entries): no subdirectories or additional files. Nothing was modified.\n\nNote: the first program returned the `TaskResult` as a repr rather than the three fields directly; the values above are extracted from that result. I did not re-run the task, to avoid spawning a duplicate child and re-touching the workspace.",
+  "workspace": [
+    {
+      "path": ".manus/tasks/ses_e122e4a33ffejD4OtM4QKUu3LK.jsonl",
+      "bytes": 7448
+    },
+    {
+      "path": "README.md",
+      "bytes": 49
+    },
+    {
+      "path": "sample.txt",
+      "bytes": 24
+    }
+  ]
 }

@@ -4,13 +4,14 @@ import os
 import sys
 
 import agent
-from program import Run
 
 
 def main():
     os.makedirs(os.environ.get("HOME", "/tmp/home"), exist_ok=True)
     try:
         with agent.Client() as client:
+            from program import Run
+
             with contextlib.redirect_stdout(sys.stderr):
                 value = Run(None, client)
         envelope = {"type": "final", "ok": True, "value": agent.to_json(value)}

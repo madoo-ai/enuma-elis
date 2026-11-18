@@ -45,7 +45,8 @@ subdirectories or additional files. Nothing was modified.
 | Parent | 543 | 344 | 420 | 3,840 |
 | Child | 6,578 | 228 | 81 | 12,800 |
 
-Cost is reported as 0 by the provider.
+Cost is reported as 0 by the provider. `metrics.json` is the parent summary;
+the child token counts above are summed from the child transcript.
 
 ## What it proves
 
