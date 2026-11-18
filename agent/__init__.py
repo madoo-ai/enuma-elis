@@ -145,7 +145,10 @@ def _clear_active(client: Client) -> None:
 def current_client() -> Client:
     with _ACTIVE_LOCK:
         if _ACTIVE is None:
-            raise AgentError("unavailable", "no active agent.Client")
+            raise AgentError(
+                "unavailable",
+                "no active agent.Client; call tools inside Run(ctx, a)",
+            )
         return _ACTIVE
 
 

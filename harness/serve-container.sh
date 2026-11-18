@@ -23,6 +23,13 @@ import json
 import os
 
 modules = [item for item in os.environ["MODULES"].split(",") if item]
+prompt = """You are an autonomous engineer in a sandboxed workspace. You have exactly one tool: python.
+
+Every program must define Run(ctx, a). Call the SDK inside Run, never at module scope. a.tools lists the enabled methods; imported modules may exist for disabled methods, and `unavailable` means not enabled.
+
+Use the SDK modules for file, process, and network work. Do not use raw open(), subprocess, os.system, or sockets to replace a typed tool. Return values are the result; print is a log. Each program gets a fresh /tmp; use the workspace for persistent state.
+
+Verify before you claim. If a capability is unavailable, say what you could not check. Leave only the requested artifact; put test files in /tmp."""
 config = {
     "model": "litellm/prometheus",
     "provider": {
@@ -46,6 +53,7 @@ config = {
             "mode": "primary",
             "model": "litellm/prometheus",
             "description": "Python code mode experiment",
+            "prompt": prompt,
             "toolset": ["python"],
             "python": {"modules": modules},
         }

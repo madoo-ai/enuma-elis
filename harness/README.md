@@ -155,3 +155,19 @@ The two arm B runs are the clearest data point:
   6 raw opens, 17 raw execs, claimed Chromium tests.
 - [Blocked](runs/arms/B-20261118T155413/analysis.md): 9 typed child calls, 0 raw
   opens, 0 raw execs, 41 s, honest structural verification.
+- [Reasoning comparison](runs/arms/reasoning-comparison.md): why the model
+  chose each path, in its own words.
+
+## Prompt contract
+
+The `python` tool description is now generated from the enabled catalog:
+
+- one example chosen from the enabled modules (`fs.read` first, then `fs.glob`,
+  `mutate.write`, `web.fetch`, `state.skills.load`, `agents.tasks.run`);
+- rules for `Run(ctx, a)`, `a.tools`, return values vs `print`, and the fresh
+  `/tmp`;
+- an error that names the enabled tools instead of saying "unknown tool".
+
+The `python-experiment` agent also has a prompt: one tool, no raw
+`open`/`subprocess`/`socket`, and state the verification limit. The earlier arm
+B runs predate these changes.

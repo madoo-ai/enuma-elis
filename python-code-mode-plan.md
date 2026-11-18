@@ -1,7 +1,7 @@
 # Python code mode: build plan
 
 Status: accepted design, build plan.
-Progress: Phase 0, Phase 1, the Phase 2 `task` tool, the arm runner, and the arm B blocked/unblocked comparison are implemented. Arms 0/A/C/D, the runtime volume, and manifest schemas remain.
+Progress: Phase 0, Phase 1, the Phase 2 `task` tool, the arm runner, the arm B blocked/unblocked comparison, and the prompt-contract fixes are implemented. Arms 0/A/C/D, the runtime volume, and manifest schemas remain.
 Scope: a separate Python runtime/SDK repository and the adapter inside the manica-dei/opencode fork.
 
 ## 0. Decisions
