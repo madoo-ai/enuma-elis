@@ -86,6 +86,7 @@ for index in "${!ARMS[@]}"; do
   PORT=$((4100 + index))
   RUN="$ROOT/harness/runs/arms/${ARM}-$(date +%Y%m%dT%H%M%S)"
   mkdir -p "$RUN/workspace"
+  "$ROOT/harness/provenance.sh" >"$RUN/provenance.json"
   echo "=== arm $ARM | port $PORT | $RUN ==="
 
   ENVV=(

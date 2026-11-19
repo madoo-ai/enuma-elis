@@ -206,6 +206,18 @@ model even when the provider supports vision.
 Each arm starts a fresh server, runs the same prompt, exports the session,
 copies the workspace (without `.git`), and writes `metrics.json`. The workspace
 is a git fixture now, so `filesChanged` is populated by the snapshot service.
+Set `OPENCODE_STATE_DIR=<host-dir>` to preserve the agent's SQLite database.
+
+Single capability scenarios use the same runner shape:
+
+```bash
+OPENCODE_STATE_DIR=/tmp/opencode/browser-state \
+  ./harness/scenarios.sh browser_bwrap browser bwrap 4300 \
+  'Use browser.page() to open https://example.com and return the title.'
+```
+
+Every run records `provenance.json` with the fork commit, binary version and
+SHA256, and base image. `analyze_run.py` copies it into `metrics.json`.
 
 | Arm | Catalog | Python modules | Workspace | Net | Raw exec | Sandbox |
 | --- | --- | --- | --- | --- | --- | --- |

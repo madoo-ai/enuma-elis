@@ -145,6 +145,15 @@ def main() -> int:
         metrics["workspace"] = files
 
     (run / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
+    provenance_path = run / "provenance.json"
+    if provenance_path.exists():
+        try:
+            provenance = json.loads(provenance_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            provenance = None
+        if provenance:
+            metrics["provenance"] = provenance
+            (run / "metrics.json").write_text(json.dumps(metrics, indent=2) + "\n")
     print(json.dumps({key: metrics[key] for key in metrics if key != "finalText"}, indent=2))
     if metrics.get("finalText"):
         print("\nFINAL:\n" + metrics["finalText"][:3000])
