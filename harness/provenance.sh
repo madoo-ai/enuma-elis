@@ -18,11 +18,26 @@ import os
 import sys
 
 commit, version, sha256, image, binary = sys.argv[1:]
-print(json.dumps({
+optional = {
+    "agent": "HARNESS_AGENT",
+    "modules": "HARNESS_MODULES",
+    "sandbox": "HARNESS_SANDBOX",
+    "workspace": "HARNESS_WORKSPACE",
+    "network": "HARNESS_NETWORK",
+    "block_raw_exec": "HARNESS_BLOCK_RAW_EXEC",
+    "background_subagents": "HARNESS_BACKGROUND_SUBAGENTS",
+    "question_tool": "HARNESS_QUESTION_TOOL",
+}
+provenance = {
     "fork_commit": commit,
     "binary_version": version,
     "binary_sha256": sha256,
     "base_image": image,
     "binary_path": os.path.abspath(binary),
-}, sort_keys=True))
+}
+for key, variable in optional.items():
+    value = os.environ.get(variable)
+    if value not in (None, ""):
+        provenance[key] = value
+print(json.dumps(provenance, sort_keys=True))
 PY

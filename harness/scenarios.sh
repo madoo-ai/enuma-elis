@@ -31,7 +31,15 @@ fi
 
 RUN="$ROOT/harness/runs/scenarios/${NAME}-$(date +%Y%m%dT%H%M%S)"
 mkdir -p "$RUN/workspace"
-"$ROOT/harness/provenance.sh" >"$RUN/provenance.json"
+HARNESS_AGENT="python-experiment" \
+HARNESS_MODULES="$MODULES" \
+HARNESS_SANDBOX="$SANDBOX" \
+HARNESS_WORKSPACE="rw" \
+HARNESS_NETWORK="${OPENCODE_PYTHON_NETWORK:-true}" \
+HARNESS_BLOCK_RAW_EXEC="${OPENCODE_PYTHON_BLOCK_RAW_EXEC:-0}" \
+HARNESS_BACKGROUND_SUBAGENTS="${OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS:-false}" \
+HARNESS_QUESTION_TOOL="${OPENCODE_ENABLE_QUESTION_TOOL:-false}" \
+  "$ROOT/harness/provenance.sh" >"$RUN/provenance.json"
 echo "=== scenario $NAME | modules=$MODULES sandbox=$SANDBOX port=$PORT ==="
 echo "run: $RUN"
 

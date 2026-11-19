@@ -217,7 +217,9 @@ OPENCODE_STATE_DIR=/tmp/opencode/browser-state \
 ```
 
 Every run records `provenance.json` with the fork commit, binary version and
-SHA256, and base image. `analyze_run.py` copies it into `metrics.json`.
+SHA256, base image, agent, module list, sandbox, workspace mode, network mode,
+raw-exec policy, and relevant feature flags. `analyze_run.py` copies it into
+`metrics.json`.
 
 | Arm | Catalog | Python modules | Workspace | Net | Raw exec | Sandbox |
 | --- | --- | --- | --- | --- | --- | --- |
