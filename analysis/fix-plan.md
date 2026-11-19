@@ -263,3 +263,34 @@ Problems found by reading the prompt, SDK, and bridge:
 
 Harness: `serve-container.sh` no longer hangs forever when `apt-get update`
 stalls; it times out after 90 s and keeps going.
+
+## Phase 5 — fixes taken from observed behaviour
+
+Source: 152 `python` calls in 34 session dumps under `harness/runs/`
+(27 failed). Each fix below answers something a model actually did.
+
+| Observed | Count | Fix |
+| --- | --- | --- |
+| Reads a result as a dict: `shot.get(...)`, `shot["mime"]`, plus `isinstance(x, dict)` hedges | 4 failures, 9 hedges | Every result supports `[]`, `.get`, `.keys`, `dict(result)`. |
+| Wrong attribute (`.files`, `.content`) | 3 | `AttributeError` suggests the real name and lists fields. |
+| Expects subprocess names: `.returncode`, `.stderr` | 8 and 18 uses | `returncode` and `ok` aliases; JSON drops the duplicated `stdout`/`stderr`. |
+| No `Run`, or top-level `return` | 6 | Loader wraps the script in `Run` and returns a trailing expression. |
+| Forgets an import (`browser`, `agent`, `AgentError`) | 2 | Those names are in scope. |
+| `import fs`, `from agents import tasks` | 4 | Fallback finder maps them to `agent.*`. |
+| `a.jobs`, `a.fs` | 2 | `Client` exposes the modules. |
+| Spends 3–7 calls on `dir()`, `inspect`, reading SDK source after one bad guess | 2 runs, 12 calls | `__dir__` lists only the API; `agent.help()` prints signatures; the prompt points to it. |
+| Opens with `print(a.tools); fs.glob("*")` | 5 of 5 arms | Prompt lists exactly the enabled methods (now permission-aware) and says not to probe. |
+| Quoting bugs in `shell.run` (`click #id` became a comment) | 1 run, 2 retries | `shell.run` takes an argv list. |
+| `evaluate` returned a JSON string; models wrote `ev.get("result") if isinstance(...)` | 3 | `evaluate` returns the decoded value. |
+| `get("title", "title")`, `wait_ms(500)`-style numbers, `scroll(0, 0)` | 3 | Targets ignored for title/url, numbers coerced, scroll validated with a clear error. |
+| `wait_text("Example Domain")` timed out at 30 s on example.com | 2 | Polls page text and fails with a `timeout` error. |
+| Drives the `agent-browser` CLI through `shell` (`close --all`) | 1 run | `shell.run` refuses attach flags and `close --all`. |
+| Returned objects serialize with `null` fields | all | JSON omits `None` fields. |
+
+Validated by the `observed` scenario on the rebuilt binary: a plain script,
+module aliases, `a.jobs`, `agent.help`, the CLI guard, `not_found`, and the
+field suggestion all behaved as designed.
+
+Limits: the guard only sees `agent-browser` in the command text; a model can
+still write its own CDP client in a script. The wait-text fix is a workaround;
+the cause inside `agent-browser wait --text` is not known.

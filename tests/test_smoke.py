@@ -25,7 +25,7 @@ class SmokeTest(unittest.TestCase):
 
     def test_to_json(self) -> None:
         value = agent.to_json({"text": Text("a.go", "package a\n")})
-        self.assertEqual(value, {"text": {"path": "a.go", "text": "package a\n", "lines": None, "truncated": False, "kind": "file", "next_offset": None}})
+        self.assertEqual(value, {"text": {"path": "a.go", "text": "package a\n", "truncated": False, "kind": "file"}})
 
     def test_to_json_marks_a_screenshot(self) -> None:
         value = agent.to_json(Screenshot("/tmp/shot.png", "image/png", "aGVsbG8="))

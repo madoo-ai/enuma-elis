@@ -49,3 +49,7 @@ def grep(
 
 
 __all__ = ["read", "glob", "grep"]
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)

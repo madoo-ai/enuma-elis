@@ -13,6 +13,7 @@ before acting; ``@ref`` values expire when the page changes.
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from . import current_client
@@ -39,14 +40,21 @@ def _get_value(what: str, text: str) -> Any:
     return data
 
 
+_STRING_FIELDS = {"text", "url", "target", "selector", "name", "what", "script", "locator", "into"}
+
+
 class Page:
     """A stateless façade over the session's one browser page."""
 
     def _raw(self, action: str, **fields: Any) -> Any:
         payload: dict[str, Any] = {"action": action}
         for key, value in fields.items():
-            if value is not None:
-                payload[key] = value
+            if value is None:
+                continue
+            # The tool takes strings here; a number is a clear intent.
+            if key in _STRING_FIELDS and isinstance(value, (int, float)) and not isinstance(value, bool):
+                value = str(value)
+            payload[key] = value
         return current_client().call("browser.call", payload)
 
     def _text(self, action: str, **fields: Any) -> str:
@@ -105,9 +113,26 @@ class Page:
     def text(self) -> str:
         return self.read()
 
-    def get(self, what: str, target: str | None = None, name: str | None = None) -> Any:
-        """Read one value: text, html, value, attr, title, url, count, box, or styles."""
+    def title(self) -> str:
+        """The page title."""
 
+        return str(self.get("title"))
+
+    def url(self) -> str:
+        """The current URL."""
+
+        return str(self.get("url"))
+
+    def get(self, what: str, target: str | None = None, name: str | None = None) -> Any:
+        """Read one value: text, html, value, attr, title, url, count, box, or styles.
+
+        ``title`` and ``url`` take no target; ``text`` defaults to the whole page.
+        """
+
+        if what in ("title", "url"):
+            target = None
+        elif what == "text" and target is None:
+            target = "body"
         return _get_value(what, self._text("get", what=what, target=target, name=name))
 
     def is_(self, what: str, target: str) -> bool:
@@ -198,6 +223,12 @@ class Page:
         px: int | None = None,
         selector: str | None = None,
     ) -> str:
+        if direction not in ("up", "down", "left", "right"):
+            raise AgentError(
+                "invalid_argument",
+                f"scroll direction must be 'up', 'down', 'left', or 'right', not {direction!r}; "
+                "for a distance use scroll('down', 400)",
+            )
         return self._text("scroll", text=direction, px=px, selector=selector)
 
     def scroll_into_view(self, target: str) -> str:
@@ -233,8 +264,20 @@ class Page:
     def wait_ms(self, milliseconds: int) -> str:
         return self._text("waitms", text=str(milliseconds))
 
-    def wait_text(self, text: str) -> str:
-        return self._text("waittext", text=text)
+    def wait_text(self, text: str, timeout: float = 30.0) -> str:
+        """Wait until the page's visible text contains ``text``.
+
+        This polls the page text instead of using the tool's text wait, which
+        timed out on pages that plainly contained the text.
+        """
+
+        deadline = time.monotonic() + timeout
+        while True:
+            if text in str(self.get("text", "body")):
+                return text
+            if time.monotonic() >= deadline:
+                raise AgentError("timeout", f"text {text!r} did not appear within {timeout:g}s")
+            time.sleep(0.25)
 
     def wait_url(self, url: str) -> str:
         return self._text("waiturl", url=url)
@@ -286,10 +329,15 @@ class Page:
         return self._text("inspect")
 
     # JavaScript.
-    def evaluate(self, script: str) -> str:
-        return self._text("evaluate", script=script)
+    def evaluate(self, script: str) -> Any:
+        """Run JavaScript in the page and return its value (decoded JSON)."""
 
-    def eval(self, script: str) -> str:
+        data = _decoded(self._text("evaluate", script=script))
+        if isinstance(data, dict) and "result" in data:
+            return data["result"]
+        return data
+
+    def eval(self, script: str) -> Any:
         return self.evaluate(script)
 
 
@@ -304,3 +352,7 @@ def page() -> Page:
 
 
 __all__ = ["Page", "Screenshot", "page"]
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)

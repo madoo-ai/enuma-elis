@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shlex
 from typing import Any
 
 from . import current_client
@@ -10,16 +11,21 @@ from ._types import ShellResult, parse_shell
 
 
 def run(
-    command: str,
+    command: str | list[str],
     workdir: str | None = None,
     timeout: int | None = None,
     check: bool = False,
 ) -> ShellResult:
     """Run one shell command through the host.
 
-    ``timeout`` is milliseconds. ``check=True`` raises :class:`AgentError` on a
-    nonzero exit; the default returns the result for inspection.
+    ``command`` is a shell string, or an argv list that is quoted for you, so
+    ``run(["git", "commit", "-m", message])`` needs no escaping. ``timeout`` is
+    milliseconds. ``check=True`` raises :class:`AgentError` on a nonzero exit;
+    the default returns the result for inspection.
     """
+
+    if isinstance(command, (list, tuple)):
+        command = shlex.join(str(part) for part in command)
 
     payload: dict[str, Any] = {"command": command}
     if workdir is not None:
@@ -37,3 +43,7 @@ def run(
 
 
 __all__ = ["run"]
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)

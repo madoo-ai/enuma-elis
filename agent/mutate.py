@@ -30,3 +30,7 @@ def patch(text: str) -> PatchResult:
 
 
 __all__ = ["edit", "write", "patch"]
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)

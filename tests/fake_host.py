@@ -289,6 +289,8 @@ class FakeHost:
             what = str(payload.get("what", ""))
             if what == "title":
                 return {"action": action, "text": json.dumps({"title": "Example Domain"})}
+            if what == "text":
+                return {"action": action, "text": json.dumps({"text": "Example Domain. Saved."})}
             if what == "attr":
                 return {"action": action, "text": json.dumps({"value": "go"})}
             if what == "styles":

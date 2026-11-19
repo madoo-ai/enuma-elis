@@ -108,6 +108,20 @@ class Client:
     def emit(self, message: dict[str, Any]) -> None:
         self._bridge.send(message)
 
+    def __getattr__(self, name: str) -> Any:
+        # Programs guess ``a.fs.read`` and ``a.jobs.start``; the modules are the
+        # same objects the imports give.
+        from ._program import MODULES
+
+        if name in MODULES:
+            import importlib
+
+            return importlib.import_module(f"agent.{name}")
+        raise AttributeError(
+            f"'Client' object has no attribute {name!r}; "
+            f"use a.tools, a.limits, or the modules {', '.join(MODULES)}"
+        )
+
     def __enter__(self) -> "Client":
         _set_active(self)
         return self
@@ -193,8 +207,15 @@ def to_json(value: Any, _path: str = "result") -> Any:
     if isinstance(value, dict):
         return {str(key): to_json(item, f"{_path}[{key!r}]") for key, item in value.items()}
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        skip = getattr(value, "_JSON_SKIP", ())
         return to_json(
-            {field.name: getattr(value, field.name) for field in dataclasses.fields(value)},
+            {
+                field.name: item
+                for field in dataclasses.fields(value)
+                if field.name not in skip
+                for item in [getattr(value, field.name)]
+                if item is not None
+            },
             _path,
         )
     hint = {
@@ -251,12 +272,30 @@ def to_error(error: BaseException) -> dict[str, Any]:
     return body
 
 
+def help(module: str | None = None) -> str:
+    """Return a compact reference of the enabled SDK, or of one module."""
+
+    from ._help import reference
+
+    return reference(module)
+
+
+from ._program import run_program  # noqa: E402  (after Client: the loader imports lazily)
+
 __all__ = [
     "AgentError",
     "Client",
     "current_client",
+    "help",
+    "run_program",
     "jobs",
     "to_json",
     "to_error",
     "__version__",
 ]
+
+
+def __dir__() -> list[str]:
+    from ._program import MODULES
+
+    return sorted({*__all__, *MODULES})

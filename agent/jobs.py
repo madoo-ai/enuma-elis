@@ -145,3 +145,7 @@ def _forget(job: "Job[Any]") -> None:
 
 
 __all__ = ["Job", "start", "gather", "wait_all", "cancel_all"]
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)

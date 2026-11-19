@@ -61,3 +61,7 @@ class _Tasks:
 tasks = _Tasks()
 
 __all__ = ["tasks"]
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)

@@ -11,11 +11,15 @@ from ._types import Skill, Todo, parse_skill, parse_todos
 
 class _Skills:
     def load(self, name: str) -> Skill:
+        """Load a skill's instructions by name."""
+
         return parse_skill(current_client().call("state.skills.load", {"name": name}))
 
 
 class _Todos:
     def write(self, todos: list[Todo] | list[dict[str, Any]]) -> tuple[Todo, ...]:
+        """Replace the session todo list; each item has content, status, priority."""
+
         items = [
             item if isinstance(item, dict) else dataclasses.asdict(item)
             for item in todos
@@ -27,3 +31,7 @@ skills = _Skills()
 todos = _Todos()
 
 __all__ = ["skills", "todos"]
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)

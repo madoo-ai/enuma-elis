@@ -7,7 +7,8 @@ of the fields it needs.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import difflib
+from dataclasses import dataclass, fields, is_dataclass
 from typing import Any, Union
 
 from ._errors import AgentError
@@ -23,17 +24,87 @@ def _list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
 
 
+# Names models guess that mean a field with another name.
+_SYNONYMS = {
+    "files": "paths",
+    "filenames": "paths",
+    "content": "text",
+    "contents": "text",
+    "body": "text",
+    "stdout": "output",
+    "code": "exit",
+    "status_code": "exit",
+    "mimetype": "mime",
+    "content_type": "mime",
+    "size": "bytes",
+    "count": "lines",
+}
+
+
+class _Result:
+    """Dict-style access for result objects.
+
+    Programs reach for ``result["path"]`` and ``result.get("mime")`` as often as
+    for attributes, so both work. A wrong name lists the real ones.
+    """
+
+    _JSON_SKIP: tuple[str, ...] = ()
+
+    @classmethod
+    def _names(cls) -> list[str]:
+        own = [field.name for field in fields(cls)] if is_dataclass(cls) else []
+        props = [
+            name
+            for name in dir(cls)
+            if not name.startswith("_") and isinstance(getattr(cls, name, None), property)
+        ]
+        return [*own, *props]
+
+    def __getattr__(self, name: str) -> Any:
+        if name.startswith("_"):
+            raise AttributeError(name)
+        names = type(self)._names()
+        close = difflib.get_close_matches(name, names, n=1)
+        if not close:
+            close = [_SYNONYMS[name]] if _SYNONYMS.get(name) in names else []
+        hint = f"; did you mean {close[0]!r}?" if close else ""
+        raise AttributeError(
+            f"{type(self).__name__!r} object has no attribute {name!r}{hint} "
+            f"Fields: {', '.join(names)}"
+        )
+
+    def __getitem__(self, key: str) -> Any:
+        if isinstance(key, str) and key in type(self)._names():
+            return getattr(self, key)
+        raise KeyError(f"{key!r}; {type(self).__name__} fields: {', '.join(type(self)._names())}")
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def keys(self) -> list[str]:
+        return type(self)._names()
+
+    def items(self) -> list[tuple[str, Any]]:
+        return [(name, getattr(self, name)) for name in self.keys()]
+
+    def values(self) -> list[Any]:
+        return [getattr(self, name) for name in self.keys()]
+
+
 # --- filesystem read -------------------------------------------------------
 
 
 @dataclass(frozen=True)
-class DirEntry:
+class DirEntry(_Result):
     name: str
     type: str
 
 
 @dataclass(frozen=True)
-class Text:
+class Text(_Result):
     path: str
     text: str
     lines: int | None = None
@@ -49,7 +120,7 @@ class Text:
 
 
 @dataclass(frozen=True)
-class Image:
+class Image(_Result):
     path: str
     mime: str
     data: str
@@ -68,7 +139,7 @@ class Image:
 
 
 @dataclass(frozen=True)
-class Directory:
+class Directory(_Result):
     path: str
     entries: tuple[DirEntry, ...]
     truncated: bool = False
@@ -132,13 +203,13 @@ def parse_read(data: Any) -> ReadResult:
 
 
 @dataclass(frozen=True)
-class FileEntry:
+class FileEntry(_Result):
     path: str
     type: str = "file"
 
 
 @dataclass(frozen=True)
-class GlobResult:
+class GlobResult(_Result):
     entries: tuple[FileEntry, ...]
     truncated: bool = False
 
@@ -158,14 +229,14 @@ class GlobResult:
 
 
 @dataclass(frozen=True)
-class GrepMatch:
+class GrepMatch(_Result):
     path: str
     line: int
     text: str
 
 
 @dataclass(frozen=True)
-class GrepResult:
+class GrepResult(_Result):
     matches: tuple[GrepMatch, ...]
     truncated: bool = False
 
@@ -210,7 +281,7 @@ def parse_grep(data: Any) -> GrepResult:
 
 
 @dataclass(frozen=True)
-class EditResult:
+class EditResult(_Result):
     file: str
     replacements: int
     additions: int
@@ -219,14 +290,14 @@ class EditResult:
 
 
 @dataclass(frozen=True)
-class WriteResult:
+class WriteResult(_Result):
     file: str
     bytes: int
     created: bool
 
 
 @dataclass(frozen=True)
-class PatchResult:
+class PatchResult(_Result):
     files: tuple[str, ...]
     diff: str = ""
 
@@ -264,7 +335,7 @@ def parse_patch(data: Any) -> PatchResult:
 
 
 @dataclass(frozen=True)
-class ShellResult:
+class ShellResult(_Result):
     exit: int
     stdout: str
     stderr: str
@@ -273,11 +344,26 @@ class ShellResult:
     timed_out: bool = False
     output_path: str | None = None
 
+    # stdout and stderr are merged in ``output``; keep them out of JSON.
+    _JSON_SKIP = ("stdout", "stderr")
+
     @property
     def exit_code(self) -> int:
         """Alias for :attr:`exit`, for callers that expect that name."""
 
         return self.exit
+
+    @property
+    def returncode(self) -> int:
+        """Alias for :attr:`exit`, matching ``subprocess``."""
+
+        return self.exit
+
+    @property
+    def ok(self) -> bool:
+        """True when the command exited with 0."""
+
+        return self.exit == 0
 
 
 def parse_shell(data: Any) -> ShellResult:
@@ -297,7 +383,7 @@ def parse_shell(data: Any) -> ShellResult:
 
 
 @dataclass(frozen=True)
-class FetchResult:
+class FetchResult(_Result):
     url: str
     text: str
     title: str = ""
@@ -318,7 +404,7 @@ class FetchResult:
 
 
 @dataclass(frozen=True)
-class SearchResult:
+class SearchResult(_Result):
     query: str
     text: str
     provider: str = ""
@@ -350,21 +436,21 @@ def parse_search(data: Any) -> SearchResult:
 
 
 @dataclass(frozen=True)
-class Skill:
+class Skill(_Result):
     name: str
     directory: str
     content: str
 
 
 @dataclass(frozen=True)
-class Todo:
+class Todo(_Result):
     content: str
     status: str
     priority: str
 
 
 @dataclass(frozen=True)
-class Screenshot:
+class Screenshot(_Result):
     path: str
     mime: str = "image/png"
     data: str = ""
@@ -381,7 +467,7 @@ class Screenshot:
 
 
 @dataclass(frozen=True)
-class TaskResult:
+class TaskResult(_Result):
     session_id: str
     output: str
     transcript_path: str | None = None
@@ -390,7 +476,7 @@ class TaskResult:
 
 
 @dataclass(frozen=True)
-class TaskJob:
+class TaskJob(_Result):
     session_id: str
     job_id: str
     description: str = ""

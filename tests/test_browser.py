@@ -119,7 +119,7 @@ class BrowserPageTest(unittest.TestCase):
             )
             self.assertEqual(host.calls[2], ("browser.call", {"action": "scroll", "text": "down", "px": 500}))
             self.assertEqual(host.calls[3], ("browser.call", {"action": "keyboardinsert", "text": "typed"}))
-            self.assertEqual(host.calls[4], ("browser.call", {"action": "waittext", "text": "Saved"}))
+            self.assertEqual(host.calls[4], ("browser.call", {"action": "get", "what": "text", "target": "body"}))
             self.assertEqual(host.calls[5], ("browser.call", {"action": "waiturl", "url": "**/done"}))
             self.assertEqual(host.calls[6], ("browser.call", {"action": "waitload", "text": "networkidle"}))
             self.assertEqual(

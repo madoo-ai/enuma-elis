@@ -39,3 +39,7 @@ def search(
 
 
 __all__ = ["fetch", "search"]
+
+
+def __dir__() -> list[str]:
+    return sorted(__all__)
