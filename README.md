@@ -70,6 +70,7 @@ LSP is not planned for this phase.
 - [`native-agent-tools.md`](native-agent-tools.md) — how the fork's tools work.
 - [`tool-call-stats.md`](tool-call-stats.md) — transcript statistics that motivated this.
 - [`go-code-mode.md`](go-code-mode.md) — the earlier Go variant, kept for reference.
+- [`analysis/paper-experiment-plan.md`](analysis/paper-experiment-plan.md) — hypotheses, conditions, task suite, data schema, and statistics for a paper.
 
 ## Quick check
 
