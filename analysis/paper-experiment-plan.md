@@ -1,271 +1,279 @@
 # Paper experiment plan
 
-Status: design frozen at the level of conditions, models, and target venue.
-No confirmatory runs have been made against it yet.
+Status: design draft around Terminal-Bench. No confirmatory runs have been made
+against it.
 
-Decisions already made:
+Decisions:
 
-- Target: a full empirical paper, not a workshop experience report.
-- Models: `prometheus` (DeepSeek V4.1 Flash) and `hephaestus` (GLM 5.3 Flash),
-  both through the LiteLLM aliases used by the harness.
-- Scale: the full five-condition matrix with both models.
-- The legacy SDK will be built so the prompt and SDK effects are separated.
+- Target: a full empirical paper with a focused terminal-work claim.
+- Benchmark: Terminal-Bench 2.0 only. No custom tasks.
+- Comparison: native tools versus the best current Python code mode.
+- Models: `prometheus` (DeepSeek V4.1 Flash) and `hephaestus` (GLM 5.3 Flash).
+- Scale: 16 tasks, 3 repetitions, 2 conditions, 2 models.
+- No browser, scratch-browser, sandbox-profile, or prompt/SDK ablations.
+- No human ratings.
 
-Goal: a defensible empirical paper about Python code mode as a tool interface,
-not just a system description. The paper needs repeated trials, ablations,
-pre-registered outcomes, a task suite that is not the same to-do app used during
-development, and at least two models.
+Goal: measure whether one Python program over a typed terminal surface beats
+direct native tool calls on real containerized tasks, and on which tasks it does
+not. The paper reports a bundle-level comparison. It does not decompose the
+Python condition into prompt, SDK, or runtime effects.
 
 ## 1. Claims the paper can make
 
-Candidate contributions:
+1. A design for a typed Python tool interface over native agent tools, scoped to
+   terminal work: filesystem, edits, shell, and result types.
+2. A reproducible Harbor adapter and measurement harness for running both
+   conditions on the same Terminal-Bench tasks.
+3. A two-model comparison on 16 published Terminal-Bench tasks, with task-level
+   effects, efficiency, recovery, and a failure taxonomy.
+4. Design implications for when a code surface helps in terminal work and when
+   native calls are enough.
 
-1. A design for a typed Python tool interface over native agent tools, with
-   capability-shaped modules, result types, and a sandbox.
-2. A measurement harness that records programs, child calls, failures, audit
-   events, artifacts, and claims under identical conditions.
-3. An empirical comparison against native tool calling, with ablations for the
-   prompt and the SDK ergonomics.
-4. A failure and recovery taxonomy, including the ways models work around or
-   misunderstand a typed surface.
-
-The paper should not claim that "Python code mode is better" in general. It can
-claim effects on the task suite, model, and sandbox profile it tests.
+The paper cannot claim browser or scratch-browser effects, generality beyond
+the two models and 16 tasks, or which part of the Python bundle caused an
+effect.
 
 ## 2. Research questions and hypotheses
 
 | ID | Question | Hypothesis | Primary measure |
 | --- | --- | --- | --- |
-| RQ1 | Does code mode improve verified success on compositional tasks? | H1: full code mode beats native tools on tasks with loops, batching, or multi-step verification. | Verified success (0/1), partial credit |
-| RQ2 | Does code mode add overhead on simple tasks? | H2: on single-step tasks, full code mode is no better and may cost more time or tokens. | Wall time, tokens, tool calls |
-| RQ3 | How much comes from the prompt versus the SDK? | H3: an explicit method list reduces discovery probes and shape errors; H4: ergonomic results reduce recovery calls, independent of the prompt. | Probe programs, failed programs, recovery calls |
-| RQ4 | Do sandbox restrictions change behavior or success? | H5: verified success holds on tasks that fit the profile; time and adaptation calls rise under read-only or offline profiles. | Success, time, denied calls, workarounds |
-| RQ5 | Do browser helpers improve browser work? | H6: element handles, typed lists, `audit`, and `Screenshot.save` reduce browser failures and time against raw refs and string parsing. | Browser-task success, failed actions, stale-ref recoveries |
-| RQ6 | Does code mode change honesty about verification? | H7: grounded errors and print output reduce unsupported claims; code mode is not worse than native tools. | Automated claim-artifact mismatches |
-| RQ7 | Does the benefit grow with repetitive work? | H8: the code-mode advantage increases with the number of similar calls per task. | Interaction between condition and call-count |
-| RQ8 | Do the effects reproduce across models? | H9: the condition ranking is stable across DeepSeek V4.1 Flash and GLM 5.3 Flash; a large condition-by-model interaction falsifies a generic claim. | Condition-by-model interaction |
+| RQ1 | Does Python code mode improve verified success on Terminal-Bench tasks? | H1: Python beats native on tasks with repeated edits, loops, or multi-step verification. | Official task success |
+| RQ2 | Does Python add overhead? | H2: on short tasks, Python is no better and may cost more time or tokens. | Wall time, tokens |
+| RQ3 | Where does the effect come from at task level? | H3: the advantage grows with the number of shell or edit operations the task needs. | Condition-by-operation-count interaction |
+| RQ4 | How do failure and recovery differ? | H4: Python has fewer interface and format failures, but new failure modes appear. | Failure taxonomy, recovery rate |
+| RQ5 | Do results replicate across models? | H5: the condition ranking is stable across DeepSeek V4.1 Flash and GLM 5.3 Flash. | Condition-by-model interaction |
+| RQ6 | Does either surface make unsupported claims? | H6: automated claim-artifact mismatches are no worse in Python. | Claim mismatch rate |
+| RQ7 | Does either surface violate the container boundary? | H7: neither does; the audit is a safety check, not a performance metric. | Raw exec/net/open, forbidden shortcuts |
 
-Secondary questions:
+## 3. Benchmark
 
-- Does code mode change the number of programs, programs per task, or child
-  calls per successful artifact?
-- Which error kinds disappear, and which new ones appear?
-- Does the model use concurrency and detached tasks when they are available?
-- Does the scratch browser replace raw CDP or CLI workarounds?
+### 3.1 Version
 
-## 3. Design
+Use **Terminal-Bench 2.0**: 89 tasks, each with an instruction, a Docker image,
+a reference solution, and official tests. Pin the dataset version and the Harbor
+revision in the paper and run manifest.
 
-### 3.1 Conditions
+Every task is run in its own container with the task's declared CPU, memory,
+and network settings. The official verifier decides success. We do not add our
+own task tests.
 
-Main comparison, 2 x 2 factorial plus a native baseline:
+### 3.2 Task subset
 
-| Condition | Tool surface | Prompt | SDK |
+Select 16 tasks, two per category, all terminal-only with zero GPUs and expert
+time at most 75 minutes. This keeps the matrix affordable while covering the
+main work types.
+
+| Category | Tasks | Difficulty | Expert minutes |
+| --- | --- | --- | ---: |
+| software-engineering | `fix-git`, `polyglot-c-py` | easy, medium | 5, 20 |
+| debugging | `overfull-hbox`, `custom-memory-heap-crash` | easy, medium | 60, 30 |
+| system-administration | `configure-git-webserver`, `nginx-request-logging` | hard, medium | 15, 20 |
+| security | `crack-7z-hash`, `break-filter-js-from-html` | medium, medium | 5, 20 |
+| data-processing | `financial-document-processor`, `multi-source-data-merger` | medium, medium | 30, 30 |
+| data-science | `mteb-leaderboard`, `hf-model-inference` | medium, medium | 5, 20 |
+| scientific-computing | `raman-fitting`, `dna-insert` | medium, medium | 5, 30 |
+| file-operations | `extract-elf`, `large-scale-text-editing` | medium, medium | 30, 40 |
+
+Why these:
+
+- no GPU tasks;
+- no task with an expert estimate above 75 minutes;
+- both easy and hard tasks, so the suite does not floor immediately;
+- eight categories, so a single domain cannot drive the result;
+- all tasks are terminal work, where both conditions have the same capability.
+
+Tasks are selected from the frozen Terminal-Bench 2.0 list by metadata, not by
+peeking at model outcomes. Record the selection rule and the task hashes.
+
+### 3.3 Pilot
+
+Run one repetition on eight tasks, one per category:
+
+```text
+fix-git, overfull-hbox, configure-git-webserver, crack-7z-hash,
+financial-document-processor, mteb-leaderboard, raman-fitting, extract-elf
+```
+
+Pilot matrix:
+
+```text
+2 models x 8 tasks x 2 conditions x 1 repetition = 32 runs
+```
+
+Pilot gate:
+
+- If both conditions solve fewer than roughly 15% of tasks, the suite is at a
+  floor. Replace the subset with easier Terminal-Bench tasks and rerun the
+  pilot. Do not proceed to the main matrix.
+- If both conditions solve more than roughly 85%, the suite is at a ceiling.
+  Replace the easiest tasks with harder ones and rerun the pilot.
+- Otherwise keep the suite frozen.
+
+### 3.4 Main matrix
+
+```text
+2 models x 16 tasks x 2 conditions x 3 repetitions = 192 runs
+```
+
+Total with pilot: **224 runs**.
+
+If the pilot shows high variance, the pre-registered extension is four
+repetitions: 256 main runs, 288 total. No other extension is planned.
+
+## 4. Conditions
+
+| Condition | Surface | Tools | Prompt |
 | --- | --- | --- | --- |
-| N | native tools | standard agent prompt | none |
-| L-G | Python | generic ("use the SDK") | legacy |
-| L-E | Python | explicit method list, units, examples | legacy |
-| C-G | Python | generic | current |
-| C-E | Python | explicit method list, units, examples | current |
+| N | native | bash, read, write, edit, glob, grep | standard agent prompt |
+| P | Python code mode | `fs`, `mutate`, `shell`; `agent.jobs` for concurrency | current prompt with explicit methods, units, examples |
 
-`legacy` means the pre-ergonomics SDK: no dict access, no field suggestions, no
-program-line traces, no print passthrough, no element handles, no typed browser
-lists. It is the `agent/` package from fork commit `42873ed8a` and root commit
-`6547099`, the last build before the prompt and result-ergonomics work.
-`current` is the release under test.
+Both conditions get the same task instruction and the same terminal capability
+set. Browser, scratch browser, subagents, and `web.fetch`/`web.search` are
+disabled in both conditions because Terminal-Bench tasks are terminal work and
+native tools have no equivalent browser ownership model. Network access needed
+by a task happens through `shell` in both conditions.
 
-Each condition runs on both models:
+"Best current code mode" here means the current SDK and prompt for the terminal
+profile, not every module in the repository. This keeps the comparison about the
+call surface.
 
-| Factor | Levels |
-| --- | --- |
-| Tool surface | native, Python |
-| Prompt | generic, explicit |
-| SDK | legacy, current |
-| Model | prometheus (DeepSeek V4.1 Flash), hephaestus (GLM 5.3 Flash) |
+Python runs with `OPENCODE_PYTHON_SANDBOX=none`: the Terminal-Bench task
+container is the isolation boundary, and nested bwrap is not reliable in task
+images. The audit hook still records raw exec, raw open, and raw net. Native
+bash runs under the same container.
 
-This isolates:
+## 5. Harness integration
 
-- prompt main effect: L-G vs L-E, and C-G vs C-E;
-- SDK main effect: L-G vs C-G, and L-E vs C-E;
-- prompt-by-SDK interaction: whether the prompt only helps with the ergonomic
-  SDK;
-- bundle effect: C-E vs N;
-- model replication: whether the condition contrasts have the same sign and
-  comparable size on both models.
+Use Harbor, the official Terminal-Bench harness, with a custom installed agent.
 
-The legacy SDK build is part of the experiment, not a contingency. A bundle-only
-comparison (N vs C-E) cannot support the prompt/SDK claims.
+### 5.1 Adapter
 
-### 3.2 Sandbox and browser conditions
+Implement `paper/harbor_agent.py` with two `BaseInstalledAgent` subclasses or
+one parameterized class:
 
-Keep one primary profile for the main matrix:
+- `install`: upload the built OpenCode binary and the `agent/` SDK into the task
+  container, under `/opt/enuma` and the SDK path used by the runtime.
+- `configure`: write the LiteLLM provider config, define both agents
+  (`build` and `python-experiment`), set permissions, and set the environment
+  for the selected condition.
+- `run`: start `opencode serve` inside the task container, run the task
+  instruction through `opencode run --attach`, then export the session to
+  `/logs/agent/session.json`.
+- `populate_context_post_run`: copy the OpenCode session, transcript, Python
+  programs, audit events, and token usage into the Harbor agent context.
 
-- `bwrap`, writable workspace, network on, raw exec blocked, raw net measured.
-- One shared browser owned by the session, scratch browser enabled but only
-  used by browser tasks.
+The binary is mounted or uploaded, not baked into every task image. Its
+compatibility was checked on `fix-git`, `raman-fitting`, and
+`nginx-request-logging`: the current binary runs in those images.
 
-Run a constraint study on a subset:
+### 5.2 Same harness, two agents
 
-| Profile | Workspace | Network | Purpose |
-| --- | --- | --- | --- |
-| RW | writable | on | main |
-| RO | read-only | on | adaptation to write refusal |
-| OFF | writable | off | adaptation to network refusal |
+The only difference between N and P is the OpenCode agent name:
 
-Browser study, separate from the main matrix:
+```text
+N: --agent build
+P: --agent python-experiment
+```
 
-- shared page with element handles and helpers;
-- shared page with raw refs and strings (legacy SDK);
-- scratch browser for viewport, offline, request blocking, cookies, and storage.
+Both use the same binary, provider, model alias, task instruction, time limit,
+and container. The native condition's toolset is restricted to the terminal
+tools. The Python condition's module list is restricted to `fs`, `mutate`,
+`shell`.
 
-### 3.3 Tasks
+### 5.3 Task working directory
 
-Twelve tasks, each with a public prompt and a hidden verifier. Do not use the
-development to-do app. Build and freeze the suite before the confirmatory runs.
+Use the task's declared working directory, not `/home/ubuntu/workspace`.
+Discover it from the image or from Harbor's task metadata. If a task expects a
+specific path such as `/app`, run the agent there and keep the harness out of the
+task's output paths.
 
-| ID | Category | Task | Why it is here | Verifier |
-| --- | --- | --- | --- | --- |
-| T1 | simple | Read a named file and report one value | Overhead check | Exact value |
-| T2 | refactor | Rename an API across 8 files and update tests | Multi-file, exact edits | Hidden pytest |
-| T3 | loop | Extract fields from 30 generated records into JSON | Repetitive calls | Schema + values |
-| T4 | parallel | Fetch 6 local URLs and merge results | Concurrency | Order-independent JSON |
-| T5 | browser | Fill, submit, reload, and verify a local app | Browser helpers | Browser assertions + storage |
-| T6 | responsive | Measure layout at 360/768/1280 and report overflow | Scratch browser | Numeric tolerances |
-| T7 | recovery | Handle a missing file and a denied write, then report both | Error honesty | Claim matches verifier and artifacts |
-| T8 | sandbox | Produce a report under read-only/offline constraints | Adaptation | Artifact + claim checks |
-| T9 | long-horizon | Build a small app, test it, and leave one artifact | End-to-end | Hidden tests + extra-file check |
-| T10 | delegation | Have a child review a file and report one defect | Subagents | Child transcript + final claim |
-| T11 | injection | Read a page/file with an instruction injection and ignore it | Safety | No forbidden action + report |
-| T12 | ambiguity | A task with a missing required detail; do not invent it | Calibration | Clarification or explicit assumption |
+### 5.4 Verification
 
-Each task gets:
+Harbor runs the official task tests after the agent exits. The harness stores:
 
-- a fixture with a fixed seed and content hash;
-- an acceptance rubric with binary and partial-credit criteria;
-- a hidden verifier run in a clean container;
-- a list of forbidden shortcuts, for example network access on T8 or modifying
-  verifier files;
-- a time and token cap;
-- one prompt version, hashed.
+- reward and pass/fail per task;
+- verifier stdout/stderr and CTRF JSON where present;
+- the final container diff and file hashes;
+- agent session, transcript, token usage, and audit events.
 
-### 3.4 Repetitions and power
+## 6. Outcomes
 
-Pilot: 2 models x 2 tasks x 2 conditions x 3 repetitions = 24 runs, to
-estimate variance, model behavior, and cost.
+### 6.1 Primary
 
-Main run: 2 models x 12 tasks x 5 conditions x 8 repetitions = 960 runs.
+- **Official task success:** 0/1 from the Terminal-Bench verifier.
+- **Partial credit:** only if the task's verifier provides it; otherwise not
+  synthesized.
 
-That is 192 observations per condition in total, and 96 per condition per
-model. Task is a random effect; model is a fixed factor with two levels, so it
-supports the planned condition-by-model interaction test without pretending two
-models estimate a population variance. Do not reduce the main matrix below 8 repetitions per cell; if budget
-forces a cut, remove a task before removing a repetition.
+### 6.2 Effort and reliability
 
-Additional runs:
-
-- Constraint subset: 2 models x 3 conditions (N, C-E, C-G) x 3 tasks (T2, T4,
-  T8) x 2 extra sandbox profiles (RO, OFF) x 5 repetitions = 180 runs.
-- Scratch-browser subset: 2 models x 1 condition (C-E scratch) x 2 tasks (T5,
-  T6) x 8 repetitions = 32 runs. The current shared-page and legacy shared-page
-  cells already exist in the main matrix.
-- Total: 1,172 runs before the pilot.
-
-For binary success, fit a hierarchical model rather than a per-cell proportion.
-Simulate power from the pilot using the observed task variance. Target 80% power
-for a 15 percentage-point difference, or state the minimum detectable effect.
-
-If the full matrix must be cut, remove tasks before repetitions. Task diversity
-matters more than a ninth repetition of the same task.
-
-### 3.5 Randomization and blocking
-
-- Randomize condition order within each task and repetition.
-- Block by day or model endpoint if provider drift is suspected.
-- Use a fresh container, workspace, browser profile, and state directory per run.
-- Pin each LiteLLM alias, record the provider-reported model and response ID,
-  and block runs by model. Do not mix aliases within one repetition block.
-- Disable the question and goal tools in every condition.
-- Disable scratch browsing except for T6.
-- Record prompt caching; include cache-read tokens as a covariate, not as
-  evidence of efficiency.
-
-## 4. Outcomes
-
-### 4.1 Primary
-
-- **Verified success:** 0/1 from the hidden verifier. This is the primary
-  outcome. Partial credit is secondary.
-- **Partial credit:** 0-100 from the rubric, fixed before runs.
-
-### 4.2 Effort and reliability
-
-- wall-clock seconds;
+- wall-clock seconds within the task's agent timeout;
 - input, output, reasoning, and cache-read tokens;
-- cost, if the provider reports it;
+- cost, when reported;
 - Python programs per task;
-- child tool calls per successful artifact;
+- child calls per task;
 - failed programs and failed child calls;
 - recovery: a failed program followed by a successful one in the same run;
-- time to first correct artifact;
-- output truncations.
+- output truncations;
+- task timeouts.
 
-### 4.3 Interface behavior
+### 6.3 Interface behavior
 
 - discovery probes: `a.tools`, `dir`, `inspect`, SDK source reads;
-- import errors, shape errors, attribute errors, timeouts;
-- use of result keys, `.get`, aliases, and field suggestions;
-- stale-ref recoveries and element-handle retries;
-- concurrency use and overlap;
-- detached-task launch and delivery latency;
-- browser actions by kind: snapshot, locate, act, wait, read, screenshot;
-- raw CDP, WebSocket, or `agent-browser` CLI workarounds.
+- import, shape, attribute, command, and timeout errors;
+- result access patterns: attributes, keys, `.get`, aliases;
+- shell command construction and quoting;
+- concurrency use;
+- raw CDP, WebSocket, or `agent-browser` CLI workarounds, if any.
 
-### 4.4 Safety and honesty
+### 6.4 Safety and honesty
 
-- audited raw exec, raw open, raw net, with screenshot writes separated;
-- permission denials and prompt-injection compliance;
+- audited raw exec, raw open, and raw net;
 - forbidden shortcut use;
-- claim-artifact consistency: every claim that names a file, test result,
-  screenshot, or browser action is checked against an artifact or verifier
-  record; a mismatch is counted automatically.
+- claim-artifact consistency: every claim that names a file, test result, or
+  command is checked against an artifact or verifier record; a mismatch is
+  counted automatically.
 
-### 4.5 Artifact hygiene
+### 6.5 Artifact hygiene
 
 - diff size and files changed;
-- extra or forbidden files;
-- output format and file count;
+- extra files;
+- file count and output format;
 - verifier pass rate per artifact.
 
-## 5. Data collection
+No human ratings, rater agreement, or subjective quality score.
 
-### 5.1 Run manifest
+## 7. Data collection
 
-One JSON object per run:
+### 7.1 Run manifest
 
 ```json
 {
-  "run_id": "T5-C-E-r03",
+  "run_id": "fix-git-P-prometheus-r01",
   "batch": "confirmatory-1",
-  "condition": "C-E",
-  "task_id": "T5",
-  "repetition": 3,
-  "order": 11,
+  "benchmark": "terminal-bench@2.0",
+  "dataset_revision": "...",
+  "task_id": "fix-git",
+  "task_hash": "sha256:...",
+  "category": "software-engineering",
+  "difficulty": "easy",
+  "expert_time_estimate_min": 5,
+  "condition": "P",
+  "repetition": 1,
+  "order": 1,
   "model_alias": "prometheus",
   "model_reported": "DeepSeek V4.1 Flash",
-  "model_family": "deepseek",
-  "model_tier": "flash",
-  "model_snapshot": "provider-reported",
   "temperature": 0.0,
   "max_tokens": 8192,
   "prompt_hash": "sha256:...",
-  "prompt_variant": "explicit",
   "sdk_version": "0.1.0",
   "fork_sha": "...",
   "root_sha": "...",
-  "image_digest": "sha256:...",
-  "sandbox": "bwrap",
-  "workspace": "rw",
-  "network": true,
-  "modules": ["fs", "mutate", "shell", "web", "state", "browser"],
+  "harbor_revision": "...",
+  "task_image": "alexgshaw/fix-git:20251031",
+  "task_image_digest": "sha256:...",
+  "sandbox": "task-container",
+  "python_sandbox": "none",
+  "modules": ["fs", "mutate", "shell"],
   "scratch": false,
   "question_tool": false,
   "started_at": "2026-...",
@@ -275,7 +283,7 @@ One JSON object per run:
 }
 ```
 
-### 5.2 Event log
+### 7.2 Event log
 
 One JSONL row per normalized event:
 
@@ -285,186 +293,128 @@ One JSONL row per normalized event:
 - `child_call` with tool, status, duration;
 - `audit` with kind and target;
 - `claim` with text and its automated artifact check;
-- `verifier` with test id and result.
+- `verifier` with task id, reward, and test summary.
 
-Keep raw `transcript.jsonl` and `session.json`, but never analyze only the raw
-shape. The normalized log is what the statistics use.
+Keep the raw OpenCode session and transcript, but analyze the normalized log.
 
-### 5.3 Program features
+### 7.3 Program features
 
-For each Python program, record:
+For each Python program:
 
 - parses, has `Run`, AST depth, lines, characters;
 - imports and canonical-import compliance;
 - SDK calls and child calls;
-- result shape and use of dict access;
+- result shape and dict access;
 - discovery probes;
 - try/except and error branches;
-- concurrency, detached tasks, browser actions;
+- concurrency;
 - failure kind and trace frame;
 - whether it was a probe, build, verification, or recovery program.
 
-### 5.4 Artifacts and verifier output
+## 8. Controls and threats
 
-- file paths, sizes, SHA256, and ownership;
-- diff against the fixture;
-- hidden verifier stdout/stderr and exit code;
-- forbidden files or shortcuts;
-- browser storage and console state for browser tasks;
-- screenshot hashes and dimensions.
+Controlled:
 
-## 6. Controls and threats
+- benchmark revision, task hashes, and task image digests;
+- model aliases, provider, reported model, temperature, max tokens;
+- task instruction and system prompt;
+- OpenCode binary SHA256 and SDK version;
+- Harbor revision;
+- terminal toolset and Python module list;
+- task time limit;
+- question and goal tools disabled;
+- scratch browser disabled;
+- randomized condition order within task and repetition;
+- one fresh container per run.
 
-### 6.1 Controlled
-
-- model alias, provider, reported model, temperature, max tokens, and system
-  prompt;
-- task prompt bytes and hash;
-- fixture content hash and seed;
-- container image digest, runtime version, bwrap version;
-- tool permissions, timeouts, and module list;
-- question/goal disabled;
-- no human intervention;
-- randomized order;
-- one fresh environment per run.
-
-### 6.2 Threats and mitigations
+Threats:
 
 | Threat | Mitigation |
 | --- | --- |
-| Model stochasticity | Repetitions, randomization, hierarchical models |
-| Prompt leakage between tasks | Separate containers; no shared state; randomize order |
-| Evaluator gaming | Hidden tests; behavior checks; no condition-specific verifier |
-| Provider drift | Pin snapshot; record response IDs; block by day |
-| Prompt caching | Record cache tokens; include as covariate; do not count as tool efficiency |
-| Timeouts and rate limits | Pre-registered exclusion rules; retry only infrastructure failures |
-| Browser state | Fresh profile; local fixture server; no human browser |
-| Task depth choice | Acceptance criteria and artifact limits; measure extra work separately |
-| Development-task overfitting | Build a new suite; do not tune on confirmatory tasks |
-| Export truncation | Export inside the container and copy; verify JSON parses before analysis |
-| Missing bwrap/package drift | Pin image, install from recorded debs, preflight every batch |
-| Raw-open accounting | Report screenshot saves separately from other raw opens |
+| Benchmark contamination | Use a published benchmark and report the date; do not claim unseen tasks |
+| Terminal-Bench floor or ceiling | Pilot gate; replace tasks if success is too low or high |
+| Bundle confound | State that prompt, SDK, and helpers move together |
+| Model drift | Pin aliases; record provider-reported model and response IDs |
+| Task image drift | Pin image digests; preflight every batch |
+| Harbor/agent integration bugs | Validate install and export on 3 task images; fail the batch on any missing session |
+| Python sandbox mismatch | Use the task container as the boundary; report `python_sandbox=none` |
+| Raw-open accounting | Add no screenshot helper to this scope; report raw opens separately if any |
+| Tool-surface imbalance | Restrict both conditions to the same terminal capability set |
+| Timeout truncation | Record timeouts; do not silently treat them as task failures unless the benchmark does |
 
-## 7. Observed quirks to encode
+## 9. Analysis plan
 
-These come from the development corpus and the replay. Each should become a
-measurement, a control, or a hypothesis test, not an anecdote.
-
-| Quirk | Evidence | Treatment |
-| --- | --- | --- |
-| Surface discovery | 31 probe programs before the explicit prompt; 0 after | Measure probe rate; H3 |
-| Shape errors | Old `GlobResult` iteration, `Text.total_lines`, `Screenshot` subscripting | Error taxonomy; H4 |
-| Inverse state guess | `page.is_("disabled")` failed in U | Fixed; test as an interface case |
-| Node versus element | `find_all(...)[0].check()` failed in U | Fixed; test as an interface case |
-| Import guess | `from agent import agent` failed in one probe | Fixed; test import paths |
-| Tab selection | `tab select` was not a command | Fixed; regression test |
-| Text wait timeout | `wait_text("Example Domain")` timed out twice | Measure wait failures; fixed helper |
-| Raw CDP workaround | Old U wrote node scripts over WebSocket | Count raw CDP/CLI workarounds; H6 |
-| Screenshot writes | Six raw opens, all `Screenshot.save` | Separate counter |
-| Detached delivery | `detached_none2` took 55 s waiting for notification | Measure delivery latency, not as a stall |
-| Empty final text | `combo_none` had no final text | Treat missing final as missing data, not failure |
-| Browser depth | U made 68 browser actions and 276 s | Rubric must bound depth; measure overwork |
-| Export truncation | Two arm exports cut mid-base64 | Export inside container; validate before analysis |
-| Missing bwrap | Image lost bubblewrap; apt lists empty | Pin install path; preflight |
-| Goal authorship | Native arm stalled once on goal authorization | Disable question/goal in every condition |
-| Script without `Run` | Several scripts ran as top-level code | Loader behavior is part of the SDK; record it |
-
-## 8. Analysis plan
-
-### 8.1 Primary model
-
-Fit a Bayesian hierarchical logistic regression:
+### 9.1 Primary model
 
 ```text
-success ~ condition * task_complexity * model
-          + (1 | task) + (1 | task:condition)
+success ~ condition * model * task_complexity + (1 | task)
 ```
 
-with weakly informative priors. Report posterior means, 95% credible intervals,
-and marginal success probabilities per condition. Use PSIS-LOO for model checks.
+Model is a fixed factor with two levels. Report posterior means, 95% credible
+intervals, pooled and per-model marginal success, and the condition-by-model
+interaction.
 
-If the factorial is unavailable, use `condition` as a four-level factor and
-report planned contrasts, not all pairwise comparisons.
+### 9.2 Secondary models
 
-### 8.2 Secondary models
-
-- counts: negative binomial or Poisson with overdispersion, offset by task;
+- counts: negative binomial, offset by task;
 - duration: log-normal or Gamma;
 - tokens and cost: log-normal, with cache-read tokens as a covariate;
-- claim mismatches: binary logistic model;
-- error kinds: multinomial or per-kind logistic models.
+- claim mismatches: binary logistic;
+- error kinds: per-kind logistic models.
 
-Use Holm correction within each family of secondary outcomes. Report effect
-sizes, not only p-values.
+Use Holm correction within each family.
 
-### 8.3 Equivalence for simple tasks
+### 9.3 Failure taxonomy
 
-For H2, do not test "no difference" with a non-significant p-value. Use a
-region of practical equivalence (ROPE) or TOST with a pre-declared margin, for
-example 10% of native time or tokens.
+A rule-based classifier labels failed programs and failed runs using a codebook
+derived from the development corpus. Ambiguous cases fall into `other` and are
+listed with raw messages. Separate interface, capability, model, and
+infrastructure errors.
 
-### 8.4 Failure taxonomy
+### 9.4 No human ratings
 
-A rule-based classifier labels every failed program with a codebook derived
-from the observed quirks. Ambiguous cases fall into `other` and are listed in
-the appendix with their raw messages. Report counts and rates per condition.
-Separate:
+All outcomes are automated: official task reward, verifier output, audit
+counters, artifact checks, and claim-artifact matching.
 
-- interface errors (import, shape, attribute, command);
-- capability errors (missing tool, permission, timeout);
-- model errors (wrong plan, invented file, unsupported claim);
-- infrastructure errors (container, export, provider).
-
-### 8.5 Qualitative analysis
-
-- One worked trace per condition and task family, chosen by a fixed rule.
-- A table of workarounds: raw CDP, CLI, shell, direct file writes.
-- A table of recovery strategies: retry, probe, switch tool, narrow scope.
-- Quote only redacted, non-identifying text.
-
-## 9. Execution plan
+## 10. Execution plan
 
 | Phase | Work | Output |
 | --- | --- | --- |
-| 0 | Freeze claims, task suite, rubric, exclusions; write pre-registration | `paper/prereg.md`, task hashes |
-| 1 | Build condition flags and legacy SDK snapshot; add manifest fields; build verifiers | Reproducible condition matrix |
-| 2 | Pilot 2 tasks x 2 conditions x 3 reps; estimate variance and cost | Power simulation, revised repetition count |
-| 3 | Run confirmatory matrix; validate every export and verifier | Raw corpus, run manifests |
+| 0 | Freeze task list and selection rule; write pre-registration | Task hashes, `paper/prereg.md` |
+| 1 | Build Harbor adapter; validate install/export on three task images | Working N and P agents |
+| 2 | Run 32-run pilot; apply floor/ceiling gate | Pilot corpus, power estimate |
+| 3 | Run 192-run main matrix; validate every session and verifier | Raw corpus |
 | 4 | Normalize events and programs; run automated checks | Analysis tables |
 | 5 | Automated claim and artifact audit | Mismatch table |
-| 6 | Fit models, sensitivity checks, write paper | Draft, artifact, replication script |
+| 6 | Fit models, sensitivity checks, write paper | Draft and artifact |
 
-Target run: 1,172 runs, as specified in Section 3.4. The main matrix is 960
-runs; the constraint and scratch subsets add 212.
+Run count:
 
-Abort or revise the design only if the pilot shows that the verifiers cannot
-separate conditions, that one model cannot complete the suite, or that the
-provider cannot sustain the run budget. Do not silently reduce repetitions
-after seeing the main results.
+| Block | Calculation | Runs |
+| --- | --- | ---: |
+| Pilot | 2 models x 8 tasks x 2 conditions x 1 rep | 32 |
+| Main | 2 models x 16 tasks x 2 conditions x 3 reps | 192 |
+| **Total** | | **224** |
 
-## 10. Artifacts and reproducibility
+Pre-registered extension: four repetitions gives 256 main runs, 288 total.
 
-- Public repository with the harness, SDK, task suite, verifiers, and scripts.
-- Frozen task prompts and fixtures by hash.
-- Run manifests, normalized event logs, and aggregate tables.
-- A `reproduce.sh` that runs the pilot, the matrix, and the analysis.
-- A data dictionary for every field in the run manifest and event log.
-- A statement of what is excluded and why.
-- No API keys, credentials, or human browser state in the artifact.
+## 11. Scope boundaries
 
-## 11. Open decisions
+Not evaluated in this paper:
 
-Resolved:
+- browser and scratch-browser behavior;
+- subagent delegation;
+- web search and fetch;
+- non-terminal tasks;
+- general-purpose assistants;
+- models other than the two flash models.
 
-1. Venue: full empirical paper.
-2. Models: prometheus (DeepSeek V4.1 Flash) and hephaestus (GLM 5.3 Flash).
-3. Scale: full five-condition matrix on both models.
-4. Legacy SDK: build it for the 2 x 2 prompt-by-SDK design.
+These are future work, not claims.
 
-Still open:
+## 12. Open decisions
 
-1. Task suite: keep all twelve, or replace one browser-heavy task if the paper's
-   scope is narrowed.
-2. Confirmatory venue and deadline, which sets the final analysis freeze.
-3. Model snapshot lock: confirm that both LiteLLM aliases resolve to stable
-   upstream versions for the duration of the run.
+1. Task subset: confirm the 16-task list and replacement pool after the pilot.
+2. Confirmatory venue and deadline, which sets the analysis freeze.
+3. Model snapshot lock: confirm both LiteLLM aliases resolve to stable upstream
+   versions for the run.
+4. Harbor revision and dataset revision to pin.
