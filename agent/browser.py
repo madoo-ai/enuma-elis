@@ -15,8 +15,10 @@ from __future__ import annotations
 import functools
 import json
 import os
+import re
 import time
 import urllib.parse
+import uuid
 from typing import Any, Callable
 
 from . import current_client
@@ -190,15 +192,25 @@ class Page:
     instance only remembers the actions it ran, for :meth:`to_script`.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, session: str | None = None) -> None:
         self.history: list[str] = []
+        self.session = session
         self._muted = 0
+        self._closed = False
+
+    @property
+    def tool(self) -> str:
+        return "browser.scratch" if self.session else "browser.call"
 
     def _log(self, line: str) -> None:
         self.history.append(line)
 
     def _raw(self, action: str, **fields: Any) -> Any:
+        if self._closed:
+            raise AgentError("unavailable", "this scratch browser is closed; call browser.scratch() again")
         payload: dict[str, Any] = {"action": action}
+        if self.session:
+            payload["session"] = self.session
         for key, value in fields.items():
             if value is None:
                 continue
@@ -206,7 +218,7 @@ class Page:
             if key in _STRING_FIELDS and isinstance(value, (int, float)) and not isinstance(value, bool):
                 value = str(value)
             payload[key] = value
-        return current_client().call("browser.call", payload)
+        return current_client().call(self.tool, payload)
 
     def _text(self, action: str, **fields: Any) -> str:
         value = self._raw(action, **fields)
@@ -769,7 +781,9 @@ class Page:
             console_errors=tuple(m for m in console if m.type == "error"),
             console_warnings=tuple(m for m in console if m.type in ("warning", "warn")),
             page_errors=self.errors(),
-            failed_requests=tuple(r for r in self.network() if not r.ok),
+            failed_requests=tuple(
+                r for r in self.network() if not r.ok and not r.url.endswith("/favicon.ico")
+            ),
         )
 
     def goto_file(self, path: str) -> str:
@@ -817,8 +831,131 @@ def page() -> Page:
     return Page()
 
 
-__all__ = ["Element", "Page", "Screenshot", "page"]
+__all__ = ["Element", "Page", "ScratchPage", "Screenshot", "page", "scratch"]
 
 
 def __dir__() -> list[str]:
     return sorted(__all__)
+
+
+class ScratchPage(Page):
+    """A headless Chromium the program owns, with a fresh empty profile.
+
+    Everything :class:`Page` does works here. The methods below are the ones the
+    shared page cannot allow, because here nothing belongs to the human.
+    """
+
+    def __init__(self, session: str) -> None:
+        super().__init__(session=session)
+
+    def viewport(self, width: int, height: int, scale: float | None = None) -> str:
+        """Set the viewport size in CSS pixels, with an optional device scale."""
+
+        text = f"{int(width)} {int(height)}" + (f" {scale:g}" if scale else "")
+        return self._text("viewport", text=text)
+
+    def device(self, name: str) -> str:
+        """Emulate a device by name, for example ``"iPhone 12"``."""
+
+        return self._text("device", text=name)
+
+    def geo(self, latitude: float, longitude: float) -> str:
+        """Set the geolocation."""
+
+        return self._text("geo", text=f"{latitude:g} {longitude:g}")
+
+    def offline(self, on: bool = True) -> str:
+        """Turn offline mode on (or off with ``on=False``)."""
+
+        return self._text("offline", what="on" if on else "off")
+
+    def media(self, scheme: str | None = None, reduced_motion: bool = False) -> str:
+        """Emulate ``dark`` or ``light`` color scheme and reduced motion."""
+
+        return self._text("media", what=scheme, exact=reduced_motion)
+
+    def headers(self, headers: dict[str, str] | str) -> str:
+        """Send extra HTTP headers, as a dict or a JSON object string."""
+
+        text = headers if isinstance(headers, str) else json.dumps(headers)
+        return self._text("headers", text=text)
+
+    def route(self, url: str, resource_type: str | None = None) -> str:
+        """Abort requests matching ``url``. Use a full URL for an exact match.
+
+        Only blocking is exposed: agent-browser's response mocking did not
+        intercept requests in 0.27, so a mock would silently not mock.
+        """
+
+        return self._text("route", url=url, what="abort", selector=resource_type)
+
+    def unroute(self, url: str | None = None) -> str:
+        """Remove a route, or every route when ``url`` is omitted."""
+
+        return self._text("unroute", url=url)
+
+    def cookies(self) -> Any:
+        """All cookies in the private profile, decoded from the tool's JSON."""
+
+        data = _decoded(self._text("cookies", what="get"))
+        return data.get("cookies", []) if isinstance(data, dict) else data
+
+    def set_cookie(
+        self,
+        name: str,
+        value: str,
+        url: str | None = None,
+        domain: str | None = None,
+    ) -> str:
+        """Set a cookie. ``url`` lets you set one before the first page load."""
+
+        return self._text("cookies", what="set", name=name, text=value, url=url, selector=domain)
+
+    def clear_cookies(self) -> str:
+        return self._text("cookies", what="clear")
+
+    def storage(self, kind: str = "local", key: str | None = None) -> Any:
+        """Read web storage: everything, or one key. ``kind`` is local or session."""
+
+        data = _decoded(self._text("storage", what="get", locator=kind, name=key))
+        if isinstance(data, dict):
+            if "storage" in data:
+                return data["storage"]
+            if key is not None and "value" in data:
+                return data["value"]
+        return data
+
+    def set_storage(self, key: str, value: str, kind: str = "local") -> str:
+        return self._text("storage", what="set", locator=kind, name=key, text=value)
+
+    def clear_storage(self, kind: str = "local") -> str:
+        return self._text("storage", what="clear", locator=kind)
+
+    def tab_close(self, target: str | None = None) -> str:
+        """Close one tab by id or index. This is only possible on a scratch browser."""
+
+        return self._text("tabclose", target=target)
+
+    def close(self) -> str:
+        """Close this browser and delete its profile. The handle stops working."""
+
+        if self._closed:
+            return "already closed"
+        result = self._text("close")
+        self._closed = True
+        return result
+
+
+# One scratch browser per program. The host refuses any other session name.
+_SESSION = f"enuma-scratch-{uuid.uuid4().hex[:8]}"
+
+
+def scratch() -> ScratchPage:
+    """Return a headless browser the program owns.
+
+    Repeated calls in one program return handles to the same browser, so use
+    :meth:`ScratchPage.tab_new` for a second page. Close it with ``close()``
+    when you are done; the profile is temporary and deleted then.
+    """
+
+    return ScratchPage(_SESSION)

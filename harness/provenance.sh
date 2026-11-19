@@ -27,6 +27,7 @@ optional = {
     "block_raw_exec": "HARNESS_BLOCK_RAW_EXEC",
     "background_subagents": "HARNESS_BACKGROUND_SUBAGENTS",
     "question_tool": "HARNESS_QUESTION_TOOL",
+    "scratch_browser": "HARNESS_SCRATCH",
 }
 provenance = {
     "fork_commit": commit,

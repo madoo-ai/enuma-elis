@@ -147,6 +147,20 @@ returns a path the program can open directly. If the program returns the
 `Screenshot`, the host reads the path and attaches the image; the Python
 program does not carry base64 bytes in this mode.
 
+## Scratch browser
+
+`OPENCODE_PYTHON_SCRATCH=1` enables `browser.scratch()`: a headless Chromium the
+program owns, with a temporary private profile. It adds viewport and device
+emulation, offline mode, request blocking, cookies, web storage, and closing
+tabs or the browser. The shared `browser.page()` is unchanged and cannot do any
+of those. Only request blocking is exposed, not response mocking: agent-browser
+0.27's `--body` did not intercept requests.
+
+```bash
+OPENCODE_PYTHON_SCRATCH=1 ./harness/scenarios.sh scratch_viewport fs,mutate,browser none 4300 \
+  'Use browser.scratch() to measure the page at 360, 768, and 1280 px.'
+```
+
 ## Browser run
 
 The browser is a real session browser, not a headless test fixture. `Xvnc` and

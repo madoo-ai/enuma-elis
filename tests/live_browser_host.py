@@ -84,9 +84,12 @@ def _args(payload: dict[str, Any]) -> list[str]:
     return []
 
 
-def browser_call(payload: dict[str, Any]) -> dict[str, Any]:
+def browser_call(payload: dict[str, Any], session: str | None = None) -> dict[str, Any]:
     action = payload["action"]
-    if action == "snapshot":
+    session = session or SESSION
+    if action == "_raw":
+        argv = payload["_argv"]
+    elif action == "snapshot":
         argv = ["snapshot", *([] if payload.get("full") else ["-i"])]
     elif action == "find":
         argv = [
@@ -99,7 +102,7 @@ def browser_call(payload: dict[str, Any]) -> dict[str, Any]:
     else:
         argv = [*COMMANDS[action], *_args(payload)]
     done = subprocess.run(
-        ["agent-browser", "--session", SESSION, "--json", *argv],
+        ["agent-browser", "--session", session, "--json", *argv],
         capture_output=True,
         text=True,
         timeout=60,
@@ -120,9 +123,67 @@ def browser_call(payload: dict[str, Any]) -> dict[str, Any]:
     return {"action": action, "text": text_out}
 
 
-def close_session() -> None:
+def scratch_call(payload: dict[str, Any]) -> dict[str, Any]:
+    """The scratch tool: same CLI, an isolated session, a private profile."""
+
+    session = payload["session"]
+    action = payload["action"]
+    if action in COMMANDS or action == "snapshot" or action == "find":
+        return browser_call(payload, session=session)
+    what = payload.get("what")
+    text = payload.get("text")
+    name = payload.get("name")
+    kind = payload.get("locator", "local")
+    if action == "viewport":
+        argv = ["set", "viewport", *text.split()]
+    elif action == "device":
+        argv = ["set", "device", text]
+    elif action == "geo":
+        argv = ["set", "geo", *text.split()]
+    elif action == "offline":
+        argv = ["set", "offline", "off" if what == "off" else "on"]
+    elif action == "media":
+        argv = ["set", "media", *([what] if what else []), *(["reduced-motion"] if payload.get("exact") else [])]
+    elif action == "headers":
+        argv = ["set", "headers", text]
+    elif action == "route":
+        argv = [
+            "network",
+            "route",
+            payload["url"],
+            *(["--abort"] if what == "abort" else []),
+            *(["--body", text] if text else []),
+            *(["--resource-type", payload["selector"]] if payload.get("selector") else []),
+        ]
+    elif action == "unroute":
+        argv = ["network", "unroute", *([payload["url"]] if payload.get("url") else [])]
+    elif action == "cookies":
+        argv = [
+            "cookies",
+            what or "get",
+            *([name, text] if what == "set" else []),
+            *(["--url", payload["url"]] if what == "set" and payload.get("url") else []),
+            *(["--domain", payload["selector"]] if what == "set" and payload.get("selector") else []),
+        ]
+    elif action == "storage":
+        if what == "clear":
+            argv = ["storage", kind, "clear"]
+        elif what == "set":
+            argv = ["storage", kind, "set", name, text]
+        else:
+            argv = ["storage", kind, "get", *([name] if name else [])]
+    elif action == "tabclose":
+        argv = ["tab", "close", *([payload["target"]] if payload.get("target") else [])]
+    elif action == "close":
+        argv = ["close"]
+    else:
+        raise RuntimeError(f"shim does not know {action}")
+    return browser_call({"action": "_raw", "_argv": argv, "session": session}, session=session)
+
+
+def close_session(session: str = SESSION) -> None:
     subprocess.run(
-        ["agent-browser", "--session", SESSION, "close"],
+        ["agent-browser", "--session", session, "close"],
         capture_output=True,
         timeout=30,
     )

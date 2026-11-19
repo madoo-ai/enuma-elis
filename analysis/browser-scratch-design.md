@@ -84,3 +84,10 @@ one it did not." Three places enforce it:
 3. Prompt: a short second section, only when the scratch tool is enabled.
 4. Harness scenario: viewport sweep and offline test, replacing the raw CDP
    script from the U run.
+
+## Outcome
+
+Implemented. See `analysis/scratch-implementation-plan.md` for what was built
+and the validation. Two decisions changed: one browser per program instead of
+three per session, and response mocking was dropped because agent-browser's
+`--body` did not intercept requests in 0.27.

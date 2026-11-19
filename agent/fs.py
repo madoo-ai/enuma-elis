@@ -51,5 +51,11 @@ def grep(
 __all__ = ["read", "glob", "grep"]
 
 
+def __getattr__(name: str) -> Any:
+    if name in ("write", "edit", "patch"):
+        raise AttributeError(f"module 'agent.fs' has no attribute {name!r}; use mutate.{name}(...)")
+    raise AttributeError(f"module 'agent.fs' has no attribute {name!r}; it has {', '.join(__all__)}")
+
+
 def __dir__() -> list[str]:
     return sorted(__all__)
