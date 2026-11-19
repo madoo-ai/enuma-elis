@@ -1,11 +1,20 @@
 # Paper experiment plan
 
-Status: draft. No confirmatory runs have been made against this design yet.
+Status: design frozen at the level of conditions, models, and target venue.
+No confirmatory runs have been made against it yet.
+
+Decisions already made:
+
+- Target: a full empirical paper, not a workshop experience report.
+- Models: `prometheus` (DeepSeek V4.1 Flash) and `hephaestus` (GLM 5.3 Flash),
+  both through the LiteLLM aliases used by the harness.
+- Scale: the full five-condition matrix with both models.
+- The legacy SDK will be built so the prompt and SDK effects are separated.
 
 Goal: a defensible empirical paper about Python code mode as a tool interface,
 not just a system description. The paper needs repeated trials, ablations,
-pre-registered outcomes, and a task suite that is not the same to-do app used
-during development.
+pre-registered outcomes, a task suite that is not the same to-do app used during
+development, and at least two models.
 
 ## 1. Claims the paper can make
 
@@ -34,6 +43,7 @@ claim effects on the task suite, model, and sandbox profile it tests.
 | RQ5 | Do browser helpers improve browser work? | H6: element handles, typed lists, `audit`, and `Screenshot.save` reduce browser failures and time against raw refs and string parsing. | Browser-task success, failed actions, stale-ref recoveries |
 | RQ6 | Does code mode change honesty about verification? | H7: grounded errors and print output improve claim support; code mode is not worse than native tools. | Claim-support rating, artifact checks |
 | RQ7 | Does the benefit grow with repetitive work? | H8: the code-mode advantage increases with the number of similar calls per task. | Interaction between condition and call-count |
+| RQ8 | Do the effects reproduce across models? | H9: the condition ranking is stable across DeepSeek V4.1 Flash and GLM 5.3 Flash; a large condition-by-model interaction falsifies a generic claim. | Condition-by-model interaction |
 
 Secondary questions:
 
@@ -63,16 +73,27 @@ lists. It is the `agent/` package from fork commit `42873ed8a` and root commit
 `6547099`, the last build before the prompt and result-ergonomics work.
 `current` is the release under test.
 
+Each condition runs on both models:
+
+| Factor | Levels |
+| --- | --- |
+| Tool surface | native, Python |
+| Prompt | generic, explicit |
+| SDK | legacy, current |
+| Model | prometheus (DeepSeek V4.1 Flash), hephaestus (GLM 5.3 Flash) |
+
 This isolates:
 
 - prompt main effect: L-G vs L-E, and C-G vs C-E;
 - SDK main effect: L-G vs C-G, and L-E vs C-E;
-- interaction: whether the prompt only helps with the ergonomic SDK;
-- bundle effect: C-E vs N.
+- prompt-by-SDK interaction: whether the prompt only helps with the ergonomic
+  SDK;
+- bundle effect: C-E vs N;
+- model replication: whether the condition contrasts have the same sign and
+  comparable size on both models.
 
-If building the legacy SDK is too costly, fall back to a three-condition study
-(N, C-E, C-G) and state that the SDK effect is not isolated. Do not claim a
-2 x 2 result from a bundle comparison.
+The legacy SDK build is part of the experiment, not a contingency. A bundle-only
+comparison (N vs C-E) cannot support the prompt/SDK claims.
 
 ### 3.2 Sandbox and browser conditions
 
@@ -128,17 +149,31 @@ Each task gets:
 
 ### 3.4 Repetitions and power
 
-Pilot: 2 tasks x 2 conditions x 3 repetitions to estimate variance and cost.
+Pilot: 2 models x 2 tasks x 2 conditions x 3 repetitions = 24 runs, to
+estimate variance, model behavior, and cost.
 
-Main run: 12 tasks x 5 conditions x 8 repetitions = 480 runs. This is the
-minimum for a workshop-level claim. For a full paper, use 12 repetitions
-(720 runs) or two models.
+Main run: 2 models x 12 tasks x 5 conditions x 8 repetitions = 960 runs.
+
+That is 192 observations per condition in total, and 96 per condition per
+model. Task is a random effect; model is a fixed factor with two levels, so it
+supports the planned condition-by-model interaction test without pretending two
+models estimate a population variance. Do not reduce the main matrix below 8 repetitions per cell; if budget
+forces a cut, remove a task before removing a repetition.
+
+Additional runs:
+
+- Constraint subset: 2 models x 3 conditions (N, C-E, C-G) x 3 tasks (T2, T4,
+  T8) x 2 extra sandbox profiles (RO, OFF) x 5 repetitions = 180 runs.
+- Scratch-browser subset: 2 models x 1 condition (C-E scratch) x 2 tasks (T5,
+  T6) x 8 repetitions = 32 runs. The current shared-page and legacy shared-page
+  cells already exist in the main matrix.
+- Total: 1,172 runs before pilot and human rating.
 
 For binary success, fit a hierarchical model rather than a per-cell proportion.
 Simulate power from the pilot using the observed task variance. Target 80% power
 for a 15 percentage-point difference, or state the minimum detectable effect.
 
-If 480 runs are too expensive, reduce tasks before repetitions. Task diversity
+If the full matrix must be cut, remove tasks before repetitions. Task diversity
 matters more than a ninth repetition of the same task.
 
 ### 3.5 Randomization and blocking
@@ -146,7 +181,8 @@ matters more than a ninth repetition of the same task.
 - Randomize condition order within each task and repetition.
 - Block by day or model endpoint if provider drift is suspected.
 - Use a fresh container, workspace, browser profile, and state directory per run.
-- Pin the model snapshot and record the provider response ID.
+- Pin each LiteLLM alias, record the provider-reported model and response ID,
+  and block runs by model. Do not mix aliases within one repetition block.
 - Disable the question and goal tools in every condition.
 - Disable scratch browsing except for T6.
 - Record prompt caching; include cache-read tokens as a covariate, not as
@@ -213,7 +249,10 @@ One JSON object per run:
   "task_id": "T5",
   "repetition": 3,
   "order": 11,
-  "model": "provider/model",
+  "model_alias": "prometheus",
+  "model_reported": "DeepSeek V4.1 Flash",
+  "model_family": "deepseek",
+  "model_tier": "flash",
   "model_snapshot": "provider-reported",
   "temperature": 0.0,
   "max_tokens": 8192,
@@ -286,7 +325,8 @@ For each Python program, record:
 
 ### 6.1 Controlled
 
-- model, provider, snapshot, temperature, max tokens, and system prompt;
+- model alias, provider, reported model, temperature, max tokens, and system
+  prompt;
 - task prompt bytes and hash;
 - fixture content hash and seed;
 - container image digest, runtime version, bwrap version;
@@ -345,7 +385,7 @@ measurement, a control, or a hypothesis test, not an anecdote.
 Fit a Bayesian hierarchical logistic regression:
 
 ```text
-success ~ condition + task_complexity + condition:task_complexity
+success ~ condition * task_complexity * model
           + (1 | task) + (1 | task:condition)
 ```
 
@@ -402,9 +442,13 @@ inter-rater agreement. Separate:
 | 5 | Human rating and claim coding | Ratings with agreement |
 | 6 | Fit models, sensitivity checks, write paper | Draft, artifact, replication script |
 
-Minimum publishable run: 12 tasks x 4 conditions x 5 repetitions = 240 runs,
-plus the constraint subset and browser subset. Full run: 12 tasks x 5 conditions
-x 8 repetitions = 480 runs, ideally on two models.
+Target run: 1,172 runs, as specified in Section 3.4. The main matrix is 960
+runs; the constraint and scratch subsets add 212.
+
+Abort or revise the design only if the pilot shows that the verifiers cannot
+separate conditions, that one model cannot complete the suite, or that the
+provider cannot sustain the run budget. Do not silently reduce repetitions
+after seeing the main results.
 
 ## 10. Artifacts and reproducibility
 
@@ -418,12 +462,18 @@ x 8 repetitions = 480 runs, ideally on two models.
 
 ## 11. Open decisions
 
-1. Venue: workshop experience report, agent-systems venue, or software
-   engineering venue. The venue sets the bar for repetitions and related work.
-2. Models: one model or two. Two models make generality claims possible but
-   double the cost.
-3. Legacy SDK: build the 2 x 2 or settle for a bundle plus prompt ablation.
-4. Human raters: who, how many, and whether they can be blinded.
-5. Task suite: keep the proposed twelve, or replace browser-heavy tasks if the
-   paper is not about browser work.
-6. Budget: 240 runs is the minimum; 480 is the credible full matrix.
+Resolved:
+
+1. Venue: full empirical paper.
+2. Models: prometheus (DeepSeek V4.1 Flash) and hephaestus (GLM 5.3 Flash).
+3. Scale: full five-condition matrix on both models.
+4. Legacy SDK: build it for the 2 x 2 prompt-by-SDK design.
+
+Still open:
+
+1. Human raters: who, how many, and how to keep them blinded.
+2. Task suite: keep all twelve, or replace one browser-heavy task if the paper's
+   scope is narrowed.
+3. Confirmatory venue and deadline, which sets the final analysis freeze.
+4. Model snapshot lock: confirm that both LiteLLM aliases resolve to stable
+   upstream versions for the duration of the run.
