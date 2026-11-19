@@ -17,5 +17,9 @@ runtime/build/
 runtime/releases/
 runtime/dist/
 
+# Harness run artifacts
+harness/runs/arms/
+harness/runs/scenarios/
+
 # OS
 .DS_Store
