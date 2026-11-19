@@ -2,9 +2,22 @@
 # Runs inside manus-dei/base as the `ubuntu` user.
 set -euo pipefail
 
-sudo -n timeout 90 apt-get update -qq || echo "apt-get update failed; using cached lists" >&2
-command -v bwrap >/dev/null || sudo -n DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends bubblewrap >/dev/null \
-  || echo "bubblewrap is not installed; only OPENCODE_PYTHON_SANDBOX=none will work" >&2
+# The image has no package lists, and `apt-get update` can stall on third-party
+# repositories. Fetch the two packages bubblewrap needs directly instead. The
+# versions are the Ubuntu 26.04 archive builds; bwrap then runs unprivileged.
+if ! command -v bwrap >/dev/null; then
+  tmp="$(mktemp -d)"
+  if curl -fsS -o "$tmp/bwrap.deb" \
+      http://archive.ubuntu.com/ubuntu/pool/main/b/bubblewrap/bubblewrap_0.13.1-1_amd64.deb \
+    && curl -fsS -o "$tmp/libcap.deb" \
+      http://archive.ubuntu.com/ubuntu/pool/main/libc/libcap2/libcap2_2.78-1ubuntu1_amd64.deb \
+    && sudo -n dpkg -i "$tmp/bwrap.deb" "$tmp/libcap.deb" >/dev/null; then
+    :
+  else
+    echo "bubblewrap is not installed; only OPENCODE_PYTHON_SANDBOX=none will work" >&2
+  fi
+  rm -rf "$tmp"
+fi
 
 sudo -n mkdir -p /opt/manus/python/current/bin /opt/manus/python/current/lib
 sudo -n ln -sf /usr/bin/python3 /opt/manus/python/current/bin/python3

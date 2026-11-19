@@ -41,6 +41,7 @@ HARNESS_BACKGROUND_SUBAGENTS="${OPENCODE_EXPERIMENTAL_BACKGROUND_SUBAGENTS:-fals
 HARNESS_QUESTION_TOOL="${OPENCODE_ENABLE_QUESTION_TOOL:-false}" \
 HARNESS_SCRATCH="${OPENCODE_PYTHON_SCRATCH:-0}" \
   "$ROOT/harness/provenance.sh" >"$RUN/provenance.json"
+printf "%s\n" "$PROMPT" >"$RUN/prompt.txt"
 echo "=== scenario $NAME | modules=$MODULES sandbox=$SANDBOX port=$PORT ==="
 echo "run: $RUN"
 
@@ -91,7 +92,14 @@ PY
 
 CID=$(docker ps -q --filter "publish=$PORT" | head -1)
 if [ -n "${SESSION:-}" ] && [ -n "${CID:-}" ]; then
-  docker exec -u ubuntu "$CID" /opt/opencode export "$SESSION" >"$RUN/session.json" || true
+  # Write inside the container and copy the file. Streaming a large export
+    # through docker exec truncated sessions with screenshots mid-base64.
+    if docker exec -u ubuntu "$CID" bash -lc "/opt/opencode export '$SESSION' > /tmp/session-export.json" \
+      && docker cp "$CID:/tmp/session-export.json" "$RUN/session.json"; then
+      :
+    else
+      echo "export failed for $SESSION" >&2
+    fi
 fi
 
 WORK=$(grep -m1 "workspace kept:" "$RUN/serve.log" | sed 's/workspace kept: //' || true)
