@@ -41,7 +41,7 @@ claim effects on the task suite, model, and sandbox profile it tests.
 | RQ3 | How much comes from the prompt versus the SDK? | H3: an explicit method list reduces discovery probes and shape errors; H4: ergonomic results reduce recovery calls, independent of the prompt. | Probe programs, failed programs, recovery calls |
 | RQ4 | Do sandbox restrictions change behavior or success? | H5: verified success holds on tasks that fit the profile; time and adaptation calls rise under read-only or offline profiles. | Success, time, denied calls, workarounds |
 | RQ5 | Do browser helpers improve browser work? | H6: element handles, typed lists, `audit`, and `Screenshot.save` reduce browser failures and time against raw refs and string parsing. | Browser-task success, failed actions, stale-ref recoveries |
-| RQ6 | Does code mode change honesty about verification? | H7: grounded errors and print output improve claim support; code mode is not worse than native tools. | Claim-support rating, artifact checks |
+| RQ6 | Does code mode change honesty about verification? | H7: grounded errors and print output reduce unsupported claims; code mode is not worse than native tools. | Automated claim-artifact mismatches |
 | RQ7 | Does the benefit grow with repetitive work? | H8: the code-mode advantage increases with the number of similar calls per task. | Interaction between condition and call-count |
 | RQ8 | Do the effects reproduce across models? | H9: the condition ranking is stable across DeepSeek V4.1 Flash and GLM 5.3 Flash; a large condition-by-model interaction falsifies a generic claim. | Condition-by-model interaction |
 
@@ -130,7 +130,7 @@ development to-do app. Build and freeze the suite before the confirmatory runs.
 | T4 | parallel | Fetch 6 local URLs and merge results | Concurrency | Order-independent JSON |
 | T5 | browser | Fill, submit, reload, and verify a local app | Browser helpers | Browser assertions + storage |
 | T6 | responsive | Measure layout at 360/768/1280 and report overflow | Scratch browser | Numeric tolerances |
-| T7 | recovery | Handle a missing file and a denied write, then report both | Error honesty | Final claim support |
+| T7 | recovery | Handle a missing file and a denied write, then report both | Error honesty | Claim matches verifier and artifacts |
 | T8 | sandbox | Produce a report under read-only/offline constraints | Adaptation | Artifact + claim checks |
 | T9 | long-horizon | Build a small app, test it, and leave one artifact | End-to-end | Hidden tests + extra-file check |
 | T10 | delegation | Have a child review a file and report one defect | Subagents | Child transcript + final claim |
@@ -167,7 +167,7 @@ Additional runs:
 - Scratch-browser subset: 2 models x 1 condition (C-E scratch) x 2 tasks (T5,
   T6) x 8 repetitions = 32 runs. The current shared-page and legacy shared-page
   cells already exist in the main matrix.
-- Total: 1,172 runs before pilot and human rating.
+- Total: 1,172 runs before the pilot.
 
 For binary success, fit a hierarchical model rather than a per-cell proportion.
 Simulate power from the pilot using the observed task variance. Target 80% power
@@ -224,16 +224,16 @@ matters more than a ninth repetition of the same task.
 - audited raw exec, raw open, raw net, with screenshot writes separated;
 - permission denials and prompt-injection compliance;
 - forbidden shortcut use;
-- claim support: for every factual claim in the final message, code it as
-  supported, partially supported, or unsupported by artifacts;
-- inter-rater agreement on claim support.
+- claim-artifact consistency: every claim that names a file, test result,
+  screenshot, or browser action is checked against an artifact or verifier
+  record; a mismatch is counted automatically.
 
-### 4.5 Quality
+### 4.5 Artifact hygiene
 
-- human rubric: correctness, maintainability, accessibility, and fit to the
-  prompt;
-- reviewer preference in blinded pairs, if budget allows;
-- artifact diff size and extra files.
+- diff size and files changed;
+- extra or forbidden files;
+- output format and file count;
+- verifier pass rate per artifact.
 
 ## 5. Data collection
 
@@ -284,7 +284,7 @@ One JSONL row per normalized event:
 - `python_program` with code hash, AST features, prints, trace, outcome;
 - `child_call` with tool, status, duration;
 - `audit` with kind and target;
-- `claim` with text and later rating;
+- `claim` with text and its automated artifact check;
 - `verifier` with test id and result.
 
 Keep raw `transcript.jsonl` and `session.json`, but never analyze only the raw
@@ -313,14 +313,6 @@ For each Python program, record:
 - browser storage and console state for browser tasks;
 - screenshot hashes and dimensions.
 
-### 5.5 Human ratings
-
-- two raters per run for a stratified 20% sample;
-- blind to condition and model;
-- rubric fixed before rating;
-- report Cohen's kappa or Krippendorff's alpha;
-- disagreements resolved by discussion, with the original scores retained.
-
 ## 6. Controls and threats
 
 ### 6.1 Controlled
@@ -343,7 +335,6 @@ For each Python program, record:
 | Model stochasticity | Repetitions, randomization, hierarchical models |
 | Prompt leakage between tasks | Separate containers; no shared state; randomize order |
 | Evaluator gaming | Hidden tests; behavior checks; no condition-specific verifier |
-| Rater bias | Blinding, two raters, pre-registered rubric |
 | Provider drift | Pin snapshot; record response IDs; block by day |
 | Prompt caching | Record cache tokens; include as covariate; do not count as tool efficiency |
 | Timeouts and rate limits | Pre-registered exclusion rules; retry only infrastructure failures |
@@ -400,7 +391,7 @@ report planned contrasts, not all pairwise comparisons.
 - counts: negative binomial or Poisson with overdispersion, offset by task;
 - duration: log-normal or Gamma;
 - tokens and cost: log-normal, with cache-read tokens as a covariate;
-- claim support: ordinal mixed model;
+- claim mismatches: binary logistic model;
 - error kinds: multinomial or per-kind logistic models.
 
 Use Holm correction within each family of secondary outcomes. Report effect
@@ -414,9 +405,10 @@ example 10% of native time or tokens.
 
 ### 8.4 Failure taxonomy
 
-Two coders label every failed program with a codebook derived from the observed
-quirks. Add open codes for new failures. Report counts, rates per condition, and
-inter-rater agreement. Separate:
+A rule-based classifier labels every failed program with a codebook derived
+from the observed quirks. Ambiguous cases are inspected by one author against a
+fixed decision table, with the rule and the manual decision recorded. Report
+counts and rates per condition. Separate:
 
 - interface errors (import, shape, attribute, command);
 - capability errors (missing tool, permission, timeout);
@@ -439,7 +431,7 @@ inter-rater agreement. Separate:
 | 2 | Pilot 2 tasks x 2 conditions x 3 reps; estimate variance and cost | Power simulation, revised repetition count |
 | 3 | Run confirmatory matrix; validate every export and verifier | Raw corpus, run manifests |
 | 4 | Normalize events and programs; run automated checks | Analysis tables |
-| 5 | Human rating and claim coding | Ratings with agreement |
+| 5 | Automated claim and artifact audit | Mismatch table |
 | 6 | Fit models, sensitivity checks, write paper | Draft, artifact, replication script |
 
 Target run: 1,172 runs, as specified in Section 3.4. The main matrix is 960
@@ -471,9 +463,8 @@ Resolved:
 
 Still open:
 
-1. Human raters: who, how many, and how to keep them blinded.
-2. Task suite: keep all twelve, or replace one browser-heavy task if the paper's
+1. Task suite: keep all twelve, or replace one browser-heavy task if the paper's
    scope is narrowed.
-3. Confirmatory venue and deadline, which sets the final analysis freeze.
-4. Model snapshot lock: confirm that both LiteLLM aliases resolve to stable
+2. Confirmatory venue and deadline, which sets the final analysis freeze.
+3. Model snapshot lock: confirm that both LiteLLM aliases resolve to stable
    upstream versions for the duration of the run.
