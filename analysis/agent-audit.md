@@ -2,6 +2,7 @@
 
 Date: 2026-11-20. Trigger: the `jobs.wait_all` timeout bug report. This pass
 looked for state, ordering, timeout, parser, and replay bugs across `agent/`.
+A second pass on the same day added cycle detection and snapshot-name decoding.
 
 ## Findings fixed
 
@@ -16,10 +17,12 @@ looked for state, ordering, timeout, parser, and replay bugs across `agent/`.
 | `Page.extract` | `@` inside a quoted CSS value was split as an attribute marker | Only split when the suffix is an identifier | Node harness with `input[value="a@b"]` |
 | `Page.to_script` | Polling waits and many actions were not recorded, so replay raced | Record waits and remaining mutating actions | `wait_text` appears in replay |
 | `ScratchPage.to_script` | Replay used the shared page, omitted scratch actions, and closed before reading title/url | Use `browser.scratch()`, record scratch actions, compute the result before closing | Execute the generated scratch replay |
+| `to_json` | A self-referential list or dict recursed until Python's recursion limit | Track container identity and raise `invalid_result` with the value path | Cyclic list and dict; repeated non-cyclic value |
+| `parse_snapshot` | Names were only partially unescaped, so `\\n` and nested quotes stayed literal | Decode quoted names as JSON, with the old behavior as a fallback | Escaped quote and newline in a button name |
 
 ## Validation
 
-- Python suite: 130 tests pass; 16 live tests skipped by default.
+- Python suite: 134 tests pass; 16 live tests skipped by default.
 - Live shared-browser suite: 9 tests pass.
 - Live scratch-browser suite: 7 tests pass.
 - Fork typecheck and 440 tool tests were unchanged by this SDK-only patch.

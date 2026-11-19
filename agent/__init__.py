@@ -170,13 +170,15 @@ def current_client() -> Client:
         return _ACTIVE
 
 
-def to_json(value: Any, _path: str = "result") -> Any:
+def to_json(value: Any, _path: str = "result", _seen: set[int] | None = None) -> Any:
     """Convert a program result into plain JSON data.
 
     Dataclasses, lists, tuples, dicts, and primitives are accepted. Anything
     else is a clear ``invalid_result`` error that names where the value sits.
     """
 
+    if _seen is None:
+        _seen = set()
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     if isinstance(value, Screenshot):
@@ -204,9 +206,17 @@ def to_json(value: Any, _path: str = "result") -> Any:
             "title": value.title,
         }
     if isinstance(value, (list, tuple)):
-        return [to_json(item, f"{_path}[{index}]") for index, item in enumerate(value)]
+        marker = _enter(value, _path, _seen)
+        try:
+            return [to_json(item, f"{_path}[{index}]", _seen) for index, item in enumerate(value)]
+        finally:
+            _seen.remove(marker)
     if isinstance(value, dict):
-        return {str(key): to_json(item, f"{_path}[{key!r}]") for key, item in value.items()}
+        marker = _enter(value, _path, _seen)
+        try:
+            return {str(key): to_json(item, f"{_path}[{key!r}]", _seen) for key, item in value.items()}
+        finally:
+            _seen.remove(marker)
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         skip = getattr(value, "_JSON_SKIP", ())
         data = {
@@ -218,7 +228,11 @@ def to_json(value: Any, _path: str = "result") -> Any:
         }
         for name in getattr(value, "_JSON_EXTRA", ()):
             data[name] = getattr(value, name)
-        return to_json(data, _path)
+        marker = _enter(value, _path, _seen)
+        try:
+            return to_json(data, _path, _seen)
+        finally:
+            _seen.remove(marker)
     hint = {
         "set": "convert it with sorted(...) or list(...)",
         "frozenset": "convert it with sorted(...) or list(...)",
@@ -226,6 +240,18 @@ def to_json(value: Any, _path: str = "result") -> Any:
         "bytearray": "decode it with .decode() or return a length or path instead",
     }.get(type(value).__name__, "return str, int, float, bool, None, list, dict, or a result object")
     raise AgentError("invalid_result", f"cannot serialize {type(value).__name__} at {_path}; {hint}")
+
+
+def _enter(value: Any, path: str, seen: set[int] | None) -> int:
+    """Track containers during serialization, including self-references."""
+
+    if seen is None:
+        raise AgentError("invalid_result", "internal serialization state is missing")
+    marker = id(value)
+    if marker in seen:
+        raise AgentError("invalid_result", f"cyclic value at {path}")
+    seen.add(marker)
+    return marker
 
 
 _PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))

@@ -696,11 +696,17 @@ def parse_snapshot(text: str) -> tuple[Node, ...]:
                     flags.append(item)
         tail = _BRACKET.sub("", rest).strip()
         value = tail[1:].strip() if tail.startswith(":") else None
-        name = found.group("name")
+        raw_name = found.group("name")
+        try:
+            import json
+
+            name = json.loads(f'"{raw_name}"') if raw_name else ""
+        except ValueError:
+            name = raw_name.replace('\\"', '"') if raw_name else ""
         nodes.append(
             Node(
                 role=found.group("role"),
-                name=name.replace('\\"', '"') if name else "",
+                name=name,
                 ref=ref,
                 value=value or None,
                 level=level,
