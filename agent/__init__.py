@@ -14,6 +14,7 @@ import dataclasses
 import os
 import platform
 import socket
+import sys
 import threading
 import traceback
 from typing import Any, BinaryIO
@@ -282,8 +283,13 @@ def help(module: str | None = None) -> str:
 
 from ._program import run_program  # noqa: E402  (after Client: the loader imports lazily)
 
+# Make `from agent import agent` resolve to this package. Programs write that
+# form as often as `import agent`.
+agent = sys.modules[__name__]
+
 __all__ = [
     "AgentError",
+    "agent",
     "Client",
     "current_client",
     "help",

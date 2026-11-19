@@ -102,6 +102,11 @@ class SmokeTest(unittest.TestCase):
         self.assertIn("in Run", body["trace"])
         self.assertIn('{}["missing"]', body["trace"])
 
+    def test_agent_is_exported(self) -> None:
+        from agent import agent as package
+
+        self.assertIs(package, agent)
+
     def test_to_error(self) -> None:
         self.assertEqual(
             agent.to_error(agent.AgentError("not_found", "missing")),

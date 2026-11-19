@@ -182,6 +182,10 @@ class Element:
         return bool(self._act("is_visible", lambda target: self.page.is_("visible", target), record=False))
 
 
+# Spellings models reach for, mapped to the state the browser reports.
+_INVERSE = {"disabled": "enabled", "hidden": "visible", "invisible": "visible", "unchecked": "checked"}
+
+
 _STRING_FIELDS = {"text", "url", "target", "selector", "name", "what", "script", "locator", "into", "input"}
 
 
@@ -304,14 +308,24 @@ class Page:
         return _get_value(what, self._text("get", what=what, target=target, name=name))
 
     def is_(self, what: str, target: str) -> bool:
-        """Test visible, enabled, or checked."""
+        """Test visible, enabled, or checked.
 
-        value = _decoded(self._text("is", what=what, target=target))
+        The inverse spellings ``hidden``, ``disabled``, and ``unchecked`` are
+        accepted too: they query the positive state and negate it.
+        """
+
+        positive = _INVERSE.get(what, what)
+        value = _decoded(self._text("is", what=positive, target=target))
         if isinstance(value, dict):
-            for key in (what, "value", "result"):
+            for key in (positive, "value", "result", what):
                 if key in value:
-                    return bool(value[key])
-        return bool(value)
+                    result = bool(value[key])
+                    break
+            else:
+                result = bool(value)
+        else:
+            result = bool(value)
+        return not result if what in _INVERSE else result
 
     def find(
         self,
@@ -508,7 +522,7 @@ class Page:
 
         def found() -> "Element | None":
             matches = self.find_all(role=role, name=name, contains=contains, full=full)
-            return self._element(matches, 0, full) if matches else None
+            return matches[0] if matches else None
 
         return self.until(
             found,
@@ -636,20 +650,13 @@ class Page:
 
         return parse_snapshot(self.snapshot(full=full, **snapshot))
 
-    def find_all(
+    def _matching(
         self,
-        role: str | None = None,
-        name: str | None = None,
-        contains: str | None = None,
-        full: bool = False,
-        nodes: tuple[Node, ...] | None = None,
+        pool: tuple[Node, ...],
+        role: str | None,
+        name: str | None,
+        contains: str | None,
     ) -> list[Node]:
-        """Nodes with a ref that match ``role``, exact ``name``, or ``contains``.
-
-        ``contains`` is a case-insensitive substring of the name or value.
-        """
-
-        pool = nodes if nodes is not None else self.nodes(full=full)
         out = []
         for node in pool:
             if not node.ref:
@@ -665,6 +672,22 @@ class Page:
             out.append(node)
         return out
 
+    def find_all(
+        self,
+        role: str | None = None,
+        name: str | None = None,
+        contains: str | None = None,
+        full: bool = False,
+    ) -> list[Element]:
+        """Element handles matching ``role``, exact ``name``, or ``contains``.
+
+        Every handle can act, just like one from :meth:`find_one`. Use
+        :meth:`nodes` when the raw accessibility records are wanted.
+        """
+
+        matches = self._matching(self.nodes(full=full), role, name, contains)
+        return [self._element(matches, index, full) for index in range(len(matches))]
+
     def _element(self, matches: list[Node], nth: int, full: bool) -> Element:
         return Element(self, matches[nth], nth, full)
 
@@ -679,7 +702,7 @@ class Page:
         """Return a handle to one element, or raise ``not_found`` listing what exists."""
 
         pool = self.nodes(full=full)
-        matches = self.find_all(role=role, name=name, contains=contains, nodes=pool)
+        matches = self._matching(pool, role, name, contains)
         if len(matches) <= nth:
             seen = ", ".join(f"{node.role} {node.name!r}" for node in pool if node.ref)[:400]
             raise AgentError(

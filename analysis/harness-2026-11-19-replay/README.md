@@ -41,3 +41,16 @@ python3 analysis/aggregate_replay.py
 cd analysis/harness-2026-11-19-replay
 pdflatex report.tex && pdflatex report.tex
 ```
+
+## Post-report fixes
+
+The three fixes recommended in Section 9 are implemented after the report:
+
+- `page.is_("disabled" | "hidden" | "unchecked", target)` queries the positive
+  state and negates it.
+- `page.find_all(...)` returns actionable `Element` handles; `page.nodes()`
+  remains the raw `Node` view.
+- `from agent import agent` resolves to the package module.
+
+The report remains the snapshot before those changes. A later replay should
+remove the three failed programs it records.

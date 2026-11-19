@@ -11,6 +11,7 @@ from typing import Any
 from agent import browser
 from agent._errors import AgentError
 from agent._types import (
+    Node,
     Screenshot,
     parse_console,
     parse_diff,
@@ -81,10 +82,30 @@ class ElementTest(unittest.TestCase):
                 self.assertEqual(len(page.find_all(role="button", name="Save")), 2)
                 self.assertEqual([n.name for n in page.find_all(contains="mail")], ["Email"])
                 self.assertEqual(page.find_one(role="button", name="Save", nth=1).ref, "e3")
+                matches = page.find_all(role="button", name="Save")
+                self.assertIsInstance(matches[1], browser.Element)
+                self.assertEqual(matches[1].nth, 1)
+                self.assertEqual(matches[1].click(), "click ok")
+                self.assertIsInstance(page.nodes()[0], Node)
                 with self.assertRaises(AgentError) as caught:
                     page.find_one(role="link", name="Home")
                 self.assertEqual(caught.exception.kind, "not_found")
                 self.assertIn("button 'Save'", caught.exception.message)
+
+    def test_inverse_state_spellings(self) -> None:
+        host, _ = _page(**{
+            "is": [
+                json.dumps({"enabled": False}),
+                json.dumps({"visible": False}),
+                json.dumps({"checked": False}),
+            ]
+        })
+        with host as active:
+            with active.client:
+                page = browser.page()
+                self.assertTrue(page.is_("disabled", "#x"))
+                self.assertTrue(page.is_("hidden", "#x"))
+                self.assertTrue(page.is_("unchecked", "#x"))
 
     def test_stale_ref_is_resolved_and_retried(self) -> None:
         host, script = _page(
