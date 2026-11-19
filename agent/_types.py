@@ -40,6 +40,12 @@ class Text:
     truncated: bool = False
     kind: str = "file"
 
+    @property
+    def total_lines(self) -> int | None:
+        """Alias for :attr:`lines`, for callers that expect that name."""
+
+        return self.lines
+
 
 @dataclass(frozen=True)
 class Image:
@@ -119,6 +125,20 @@ class FileEntry:
 class GlobResult:
     entries: tuple[FileEntry, ...]
     truncated: bool = False
+
+    @property
+    def paths(self) -> tuple[str, ...]:
+        """Convenience view of the matching paths."""
+
+        return tuple(entry.path for entry in self.entries)
+
+    def __iter__(self):
+        """Iterate over entries, so callers do not iterate the result object by mistake."""
+
+        return iter(self.entries)
+
+    def __len__(self) -> int:
+        return len(self.entries)
 
 
 @dataclass(frozen=True)
@@ -236,6 +256,12 @@ class ShellResult:
     truncated: bool = False
     timed_out: bool = False
     output_path: str | None = None
+
+    @property
+    def exit_code(self) -> int:
+        """Alias for :attr:`exit`, for callers that expect that name."""
+
+        return self.exit
 
 
 def parse_shell(data: Any) -> ShellResult:

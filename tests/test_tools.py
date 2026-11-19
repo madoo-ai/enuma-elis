@@ -6,7 +6,7 @@ import unittest
 
 from agent import agents, fs, mutate, shell, state, web
 from agent._errors import AgentError
-from agent._types import EditResult, GlobResult, GrepResult, Skill, TaskJob, TaskResult, Todo
+from agent._types import EditResult, GlobResult, GrepResult, Skill, TaskJob, TaskResult, Text, Todo
 from fake_host import FakeHost
 
 
@@ -19,6 +19,9 @@ class FilesystemReadTest(unittest.TestCase):
             self.assertIsInstance(result, GlobResult)
             self.assertEqual(result.entries[0].path, "src/a.py")
             self.assertFalse(result.truncated)
+            self.assertEqual(result.paths, ("src/a.py",))
+            self.assertEqual(len(result), 1)
+            self.assertEqual([entry.path for entry in result], ["src/a.py"])
 
     def test_grep(self) -> None:
         with FakeHost() as host:
@@ -28,6 +31,10 @@ class FilesystemReadTest(unittest.TestCase):
             self.assertIsInstance(result, GrepResult)
             self.assertEqual(result.matches[0].line, 3)
             self.assertEqual(result.matches[0].text, "TODO")
+
+    def test_text_aliases(self) -> None:
+        result = Text("a.py", "one\ntwo", lines=2)
+        self.assertEqual(result.total_lines, 2)
 
 
 class FilesystemAttachmentTest(unittest.TestCase):
@@ -94,6 +101,14 @@ class ProcessTest(unittest.TestCase):
                 with self.assertRaises(AgentError) as caught:
                     shell.run("false", check=True)
             self.assertEqual(caught.exception.kind, "tool_failed")
+
+    def test_shell_aliases(self) -> None:
+        with FakeHost() as host:
+            assert host.client is not None
+            with host.client:
+                result = shell.run("echo ok")
+            self.assertEqual(result.exit, 0)
+            self.assertEqual(result.exit_code, 0)
 
 
 class NetworkTest(unittest.TestCase):
