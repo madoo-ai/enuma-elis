@@ -1,6 +1,6 @@
 # enuma-elis
 
-Python code mode for the [manica-dei/opencode](../me-when-agents) fork.
+Python code mode for the [manica-dei/opencode](me-when-agents) fork.
 
 The model writes one Python program; the program imports `agent` and calls native
 tools through a typed module tree. The host runs the program in `bwrap`, mediates
@@ -109,8 +109,9 @@ PORT=4097 ./harness/serve.sh
 
 - The test fixture is `me-when-agents/`, a full copy of the fork. It is ignored by
   git and must stay out of commits.
-- This repository was initialized at its current path. The directory name is not
-  part of the repository; rename it to `enuma-elis` when convenient.
+- The checkout lives at `prototypes/enuma-elis`. The directory name is not part
+  of the repository; the harness resolves paths from its own location, so moving
+  the checkout does not break the scripts.
 - The fork adapter will live in
   `me-when-agents/packages/opencode/src/tool/python/` once the plan reaches
   Phase 0.
