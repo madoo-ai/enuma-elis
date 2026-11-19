@@ -11,6 +11,7 @@ and writes its final envelope on fd 4. See ``spec/protocol.md``.
 from __future__ import annotations
 
 import dataclasses
+import math
 import os
 import platform
 import socket
@@ -26,7 +27,7 @@ from ._types import FetchResult, Image, Screenshot
 
 __version__ = "0.1.0"
 
-_ACTIVE: "Client | None" = None
+_ACTIVE_STACK: list["Client"] = []
 _ACTIVE_LOCK = threading.Lock()
 
 
@@ -148,26 +149,24 @@ class Client:
 
 
 def _set_active(client: Client) -> None:
-    global _ACTIVE
     with _ACTIVE_LOCK:
-        _ACTIVE = client
+        _ACTIVE_STACK.append(client)
 
 
 def _clear_active(client: Client) -> None:
-    global _ACTIVE
     with _ACTIVE_LOCK:
-        if _ACTIVE is client:
-            _ACTIVE = None
+        if _ACTIVE_STACK and _ACTIVE_STACK[-1] is client:
+            _ACTIVE_STACK.pop()
 
 
 def current_client() -> Client:
     with _ACTIVE_LOCK:
-        if _ACTIVE is None:
+        if not _ACTIVE_STACK:
             raise AgentError(
                 "unavailable",
                 "no active agent.Client; call tools inside Run(ctx, a)",
             )
-        return _ACTIVE
+        return _ACTIVE_STACK[-1]
 
 
 def to_json(value: Any, _path: str = "result", _seen: set[int] | None = None) -> Any:
@@ -180,6 +179,11 @@ def to_json(value: Any, _path: str = "result", _seen: set[int] | None = None) ->
     if _seen is None:
         _seen = set()
     if value is None or isinstance(value, (str, int, float, bool)):
+        if isinstance(value, float) and not math.isfinite(value):
+            raise AgentError(
+                "invalid_result",
+                f"non-finite float at {_path}; return a string, None, or a finite number",
+            )
         return value
     if isinstance(value, Screenshot):
         return {

@@ -129,7 +129,13 @@ class Bridge:
     def send(self, message: dict[str, Any]) -> None:
         if self._closed:
             raise AgentError("canceled", "bridge closed")
-        write_line(self._writer, message)
+        try:
+            write_line(self._writer, message)
+        except (OSError, ValueError) as error:
+            # A close can race a write. Report it as a closed bridge rather
+            # than letting the caller see a raw I/O error.
+            self._fail_all(AgentError("canceled", "bridge closed during write"))
+            raise AgentError("canceled", f"bridge closed during write: {error}") from error
 
     def wait_hello(self, timeout: float) -> dict[str, Any]:
         if not self._hello_event.wait(timeout):

@@ -25,6 +25,24 @@ def _list(value: Any) -> list[Any]:
     return value if isinstance(value, list) else []
 
 
+def _int(value: Any, default: int = 0) -> int:
+    """Read an optional numeric field without crashing on malformed host output."""
+
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
+def _int_or_none(value: Any) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 # Names models guess that mean a field with another name.
 _SYNONYMS = {
     "files": "paths",
@@ -272,7 +290,7 @@ def parse_grep(data: Any) -> GrepResult:
         truncated = bool(value.get("truncated", False))
     return GrepResult(
         matches=tuple(
-            GrepMatch(path=str(row.get("path", "")), line=int(row.get("line", 0)), text=str(row.get("text", "")))
+            GrepMatch(path=str(row.get("path", "")), line=_int(row.get("line", 0)), text=str(row.get("text", "")))
             for row in rows
             if isinstance(row, dict)
         ),
@@ -321,9 +339,9 @@ def parse_edit(data: Any) -> EditResult:
     value = _object(data, "edit")
     return EditResult(
         file=str(value.get("file", "")),
-        replacements=int(value.get("replacements", 0)),
-        additions=int(value.get("additions", 0)),
-        deletions=int(value.get("deletions", 0)),
+        replacements=_int(value.get("replacements", 0)),
+        additions=_int(value.get("additions", 0)),
+        deletions=_int(value.get("deletions", 0)),
         patch=str(value.get("patch", "")),
     )
 
@@ -332,7 +350,7 @@ def parse_write(data: Any) -> WriteResult:
     value = _object(data, "write")
     return WriteResult(
         file=str(value.get("file", "")),
-        bytes=int(value.get("bytes", 0)),
+        bytes=_int(value.get("bytes", 0)),
         created=bool(value.get("created", False)),
     )
 
@@ -384,7 +402,7 @@ class ShellResult(_Result):
 def parse_shell(data: Any) -> ShellResult:
     value = _object(data, "shell")
     return ShellResult(
-        exit=int(value.get("exit", 0)),
+        exit=_int(value.get("exit", 0)),
         stdout=str(value.get("stdout", "")),
         stderr=str(value.get("stderr", "")),
         output=str(value.get("output", "")),
@@ -767,7 +785,7 @@ def parse_requests(text: Any) -> tuple[Request, ...]:
         Request(
             url=str(row.get("url", "")),
             method=str(row.get("method", "GET")),
-            status=row.get("status"),
+            status=_int_or_none(row.get("status")),
             type=str(row.get("resourceType", "")),
             mime=str(row.get("mimeType", "")),
         )
@@ -799,8 +817,8 @@ def parse_diff(text: Any) -> Diff:
     if isinstance(data, dict):
         return Diff(
             changed=bool(data.get("changed", False)),
-            additions=int(data.get("additions", 0)),
-            removals=int(data.get("removals", 0)),
+            additions=_int(data.get("additions", 0)),
+            removals=_int(data.get("removals", 0)),
             text=str(data.get("diff", "")),
         )
     raw = str(text)

@@ -10,11 +10,14 @@ from ._program import MODULES
 
 
 def _enabled(module: str) -> bool:
-    from . import _ACTIVE
+    from . import _ACTIVE_STACK
 
-    if _ACTIVE is None or not _ACTIVE.tools:
+    if not _ACTIVE_STACK:
         return True
-    return any(tool.startswith(f"{module}.") for tool in _ACTIVE.tools)
+    client = _ACTIVE_STACK[-1]
+    if not client.tools:
+        return True
+    return any(tool.startswith(f"{module}.") for tool in client.tools)
 
 
 def _line(prefix: str, fn: Any) -> str:
@@ -32,11 +35,14 @@ def _members(module: Any) -> list[str]:
         item = getattr(module, name)
         if inspect.isfunction(item):
             lines.append(_line(f"{module.__name__.split('.')[-1]}.{name}", item))
-        elif inspect.isclass(item) and name == "Page":
-            for method in sorted(dir(item)):
+        elif inspect.isclass(item):
+            prefix = {"Page": "page", "ScratchPage": "scratch", "Element": "element"}.get(name, name)
+            # Only list a subclass's own additions, so help stays compact.
+            methods = dir(item) if name == "Page" else item.__dict__
+            for method in sorted(methods):
                 fn = getattr(item, method)
                 if not method.startswith("_") and callable(fn):
-                    lines.append(_line(f"page.{method}", fn))
+                    lines.append(_line(f"{prefix}.{method}", fn))
         elif not inspect.ismodule(item) and not inspect.isclass(item) and not name.startswith("_"):
             for method in sorted(dir(item)):
                 fn = getattr(item, method)

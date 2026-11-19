@@ -892,6 +892,14 @@ def __dir__() -> list[str]:
     return sorted(__all__)
 
 
+def _storage_kind(kind: str) -> None:
+    if kind not in ("local", "session"):
+        raise AgentError(
+            "invalid_argument",
+            f"storage kind must be 'local' or 'session', not {kind!r}",
+        )
+
+
 class ScratchPage(Page):
     """A headless Chromium the program owns, with a fresh empty profile.
 
@@ -981,6 +989,7 @@ class ScratchPage(Page):
     def storage(self, kind: str = "local", key: str | None = None) -> Any:
         """Read web storage: everything, or one key. ``kind`` is local or session."""
 
+        _storage_kind(kind)
         data = _decoded(self._text("storage", what="get", locator=kind, name=key))
         if isinstance(data, dict):
             if "storage" in data:
@@ -991,10 +1000,12 @@ class ScratchPage(Page):
 
     @_recorded
     def set_storage(self, key: str, value: str, kind: str = "local") -> str:
+        _storage_kind(kind)
         return self._text("storage", what="set", locator=kind, name=key, text=value)
 
     @_recorded
     def clear_storage(self, kind: str = "local") -> str:
+        _storage_kind(kind)
         return self._text("storage", what="clear", locator=kind)
 
     @_recorded
