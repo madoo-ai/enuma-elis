@@ -242,3 +242,24 @@ If tool descriptions changed, rebuild the fork before the next harness run:
 ```bash
 ./harness/build.sh
 ```
+
+## Phase 4 — ergonomics audit (agent-facing)
+
+Status: **implemented and validated** with the `ergonomics` scenario.
+
+Problems found by reading the prompt, SDK, and bridge:
+
+| Problem | Fix |
+| --- | --- |
+| `print` output never reached the model, although the prompt said "print goes to logs". | Bridge waits for stderr to drain; output shows a `[print output]` section on success and failure. |
+| A crash returned only `str(error)`: no type, no line. | `to_error` adds `Type: text` and a `trace` of the program's own frames; output shows `[where]`. |
+| Documented error kinds (`not_found`, ...) never occurred; every native failure was `tool_failed`. | `classify()` maps native messages onto kinds; the prompt lists the kinds and `AgentError`. |
+| `fs.read` on a directory returned `Text` holding XML while the prompt promised `Directory`. | The adapter emits real `Directory` results; `Text` carries `truncated` and `next_offset`. |
+| `ShellResult.stderr` was always empty but advertised. | The prompt says output is merged; `stderr` is not listed as useful. |
+| `mutate.write` reported UTF-16 length as `bytes`. | Uses `Buffer.byteLength`. |
+| Units were hidden: shell timeout is ms, `web.fetch` timeout is seconds. | Both appear in the signatures. |
+| The 2-task budget per program was invisible until it failed. | Stated when `agents` is enabled. |
+| `to_json` errors did not say where the bad value sat. | Message names the path and suggests a conversion. |
+
+Harness: `serve-container.sh` no longer hangs forever when `apt-get update`
+stalls; it times out after 90 s and keeps going.

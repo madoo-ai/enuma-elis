@@ -2,8 +2,9 @@
 # Runs inside manus-dei/base as the `ubuntu` user.
 set -euo pipefail
 
-sudo -n apt-get update -qq
-sudo -n DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends bubblewrap >/dev/null
+sudo -n timeout 90 apt-get update -qq || echo "apt-get update failed; using cached lists" >&2
+command -v bwrap >/dev/null || sudo -n DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends bubblewrap >/dev/null \
+  || echo "bubblewrap is not installed; only OPENCODE_PYTHON_SANDBOX=none will work" >&2
 
 sudo -n mkdir -p /opt/manus/python/current/bin /opt/manus/python/current/lib
 sudo -n ln -sf /usr/bin/python3 /opt/manus/python/current/bin/python3
@@ -27,7 +28,7 @@ prompt = """You are an autonomous engineer in a sandboxed workspace. You have ex
 
 Every program must define Run(ctx, a). Call the SDK inside Run, never at module scope. a.tools lists the enabled methods; imported modules may exist for disabled methods, and `unavailable` means not enabled.
 
-Use the SDK modules for file, process, and network work. Do not use raw open(), subprocess, os.system, or sockets to replace a typed tool. For independent calls, agent.jobs.start(fn, ...) runs them concurrently; await each job.result() before Run returns. Return values are the result; print is a log. Each program gets a fresh /tmp; use the workspace for persistent state.
+Use the SDK modules for file, process, and network work. Do not use raw open(), subprocess, os.system, or sockets to replace a typed tool. For independent calls, agent.jobs.start(fn, ...) runs them concurrently; await each job.result() before Run returns. Each program gets a fresh /tmp; use the workspace for persistent state.
 
 Verify before you claim. If a capability is unavailable, say what you could not check. Leave only the requested artifact; put test files in /tmp.
 
