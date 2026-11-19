@@ -39,6 +39,7 @@ class Text:
     lines: int | None = None
     truncated: bool = False
     kind: str = "file"
+    next_offset: int | None = None
 
     @property
     def total_lines(self) -> int | None:
@@ -72,6 +73,19 @@ class Directory:
     entries: tuple[DirEntry, ...]
     truncated: bool = False
     kind: str = "directory"
+    total: int | None = None
+
+    @property
+    def names(self) -> tuple[str, ...]:
+        """Entry names, without the directory type."""
+
+        return tuple(entry.name for entry in self.entries)
+
+    def __iter__(self):
+        return iter(self.entries)
+
+    def __len__(self) -> int:
+        return len(self.entries)
 
 
 ReadResult = Union[Text, Image, Directory]
@@ -87,6 +101,7 @@ def parse_read(data: Any) -> ReadResult:
                 text=str(value.get("text", "")),
                 lines=value.get("lines"),
                 truncated=bool(value.get("truncated", False)),
+                next_offset=value.get("next_offset"),
             )
         if kind in ("image", "attachment"):
             return Image(
@@ -105,6 +120,7 @@ def parse_read(data: Any) -> ReadResult:
                 path=str(value["path"]),
                 entries=entries,
                 truncated=bool(value.get("truncated", False)),
+                total=value.get("total"),
             )
     except (KeyError, TypeError, ValueError) as error:
         raise AgentError("invalid_output", f"malformed read output: {error}") from error

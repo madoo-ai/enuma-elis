@@ -15,6 +15,7 @@ import os
 import platform
 import socket
 import threading
+import traceback
 from typing import Any, BinaryIO
 
 from ._bridge import Bridge, PROTOCOL
@@ -154,11 +155,11 @@ def current_client() -> Client:
         return _ACTIVE
 
 
-def to_json(value: Any) -> Any:
+def to_json(value: Any, _path: str = "result") -> Any:
     """Convert a program result into plain JSON data.
 
     Dataclasses, lists, tuples, dicts, and primitives are accepted. Anything
-    else is a clear ``invalid_result`` error instead of a stack trace.
+    else is a clear ``invalid_result`` error that names where the value sits.
     """
 
     if value is None or isinstance(value, (str, int, float, bool)):
@@ -188,24 +189,66 @@ def to_json(value: Any) -> Any:
             "title": value.title,
         }
     if isinstance(value, (list, tuple)):
-        return [to_json(item) for item in value]
+        return [to_json(item, f"{_path}[{index}]") for index, item in enumerate(value)]
     if isinstance(value, dict):
-        return {str(key): to_json(item) for key, item in value.items()}
+        return {str(key): to_json(item, f"{_path}[{key!r}]") for key, item in value.items()}
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
-        return to_json(dataclasses.asdict(value))
-    raise AgentError("invalid_result", f"cannot serialize {type(value).__name__}")
+        return to_json(
+            {field.name: getattr(value, field.name) for field in dataclasses.fields(value)},
+            _path,
+        )
+    hint = {
+        "set": "convert it with sorted(...) or list(...)",
+        "frozenset": "convert it with sorted(...) or list(...)",
+        "bytes": "decode it with .decode() or return a length or path instead",
+        "bytearray": "decode it with .decode() or return a length or path instead",
+    }.get(type(value).__name__, "return str, int, float, bool, None, list, dict, or a result object")
+    raise AgentError("invalid_result", f"cannot serialize {type(value).__name__} at {_path}; {hint}")
+
+
+_PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _trace(error: BaseException) -> str:
+    """Render the frames of a failure that belong to the program, newest last.
+
+    The SDK's own frames and the host harness are noise to the author of the
+    program, so they are skipped. The line text comes from the program source.
+    """
+
+    frames = [
+        frame
+        for frame in traceback.extract_tb(error.__traceback__)
+        if not os.path.abspath(frame.filename).startswith(_PACKAGE_DIR)
+        and not frame.filename.endswith("zz_main.py")
+    ][-6:]
+    lines = []
+    for frame in frames:
+        name = os.path.basename(frame.filename)
+        where = f'{name}:{frame.lineno} in {frame.name}'
+        lines.append(f"  {where}: {frame.line}" if frame.line else f"  {where}")
+    return "\n".join(lines)
 
 
 def to_error(error: BaseException) -> dict[str, Any]:
-    """Map an exception to the fd 4 error envelope."""
+    """Map an exception to the fd 4 error envelope.
+
+    ``trace`` is present when the failure has frames from the program, so the
+    model can see which line failed without a full Python traceback.
+    """
 
     if isinstance(error, AgentError):
-        return {
+        body: dict[str, Any] = {
             "kind": error.kind,
             "message": error.message,
             "data": to_json(error.data) if error.data is not None else None,
         }
-    return {"kind": "tool_failed", "message": str(error)}
+    else:
+        body = {"kind": "exception", "message": f"{type(error).__name__}: {error}"}
+    trace = _trace(error)
+    if trace:
+        body["trace"] = trace
+    return body
 
 
 __all__ = [

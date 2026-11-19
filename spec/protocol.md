@@ -55,7 +55,8 @@ Host failure:
 ```
 
 Error kinds: `invalid_input`, `permission_denied`, `unavailable`, `not_found`,
-`tool_failed`, `canceled`, `timeout`.
+`tool_failed`, `canceled`, `timeout`. The host maps native tool failures onto
+these by message (for example "File not found" becomes `not_found`).
 
 ## Audit
 
@@ -76,10 +77,16 @@ fd 4 receives exactly one object:
 ```
 
 ```json
-{"ok":false,"error":{"kind":"tool_failed","message":"..."}}
+{"ok":false,"error":{"kind":"exception","message":"KeyError: 'x'","trace":"  program.py:4 in Run: row['x']"}}
 ```
 
-A missing envelope is a `tool_failed` result with the stderr tail.
+An exception that is not an `AgentError` has kind `exception`; the message is
+`Type: text`. `trace` is optional and lists the program's own frames, one per
+line. The host waits for stderr to drain after the envelope, then shows the
+model the failure, the trace, and the program's print output. A successful run
+shows its print output after the result.
+
+A missing envelope is reported as "exited without a result" with the print output.
 
 ## Cancellation
 

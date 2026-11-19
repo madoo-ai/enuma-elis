@@ -32,6 +32,32 @@ class FilesystemReadTest(unittest.TestCase):
             self.assertEqual(result.matches[0].line, 3)
             self.assertEqual(result.matches[0].text, "TODO")
 
+    def test_parse_directory_read(self) -> None:
+        from agent._types import Directory, parse_read
+
+        result = parse_read(
+            {
+                "kind": "directory",
+                "path": "/w",
+                "entries": [{"name": "src", "type": "directory"}, {"name": "a.go", "type": "file"}],
+                "total": 9,
+                "truncated": True,
+            }
+        )
+        self.assertIsInstance(result, Directory)
+        self.assertEqual(result.names, ("src", "a.go"))
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result.total, 9)
+
+    def test_parse_paged_read(self) -> None:
+        from agent._types import parse_read
+
+        result = parse_read(
+            {"kind": "file", "path": "a", "text": "t", "lines": 5000, "truncated": True, "next_offset": 2001}
+        )
+        self.assertTrue(result.truncated)
+        self.assertEqual(result.next_offset, 2001)
+
     def test_text_aliases(self) -> None:
         result = Text("a.py", "one\ntwo", lines=2)
         self.assertEqual(result.total_lines, 2)

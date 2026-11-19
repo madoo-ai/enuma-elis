@@ -25,7 +25,7 @@ class SmokeTest(unittest.TestCase):
 
     def test_to_json(self) -> None:
         value = agent.to_json({"text": Text("a.go", "package a\n")})
-        self.assertEqual(value, {"text": {"path": "a.go", "text": "package a\n", "lines": None, "truncated": False, "kind": "file"}})
+        self.assertEqual(value, {"text": {"path": "a.go", "text": "package a\n", "lines": None, "truncated": False, "kind": "file", "next_offset": None}})
 
     def test_to_json_marks_a_screenshot(self) -> None:
         value = agent.to_json(Screenshot("/tmp/shot.png", "image/png", "aGVsbG8="))
@@ -74,6 +74,33 @@ class SmokeTest(unittest.TestCase):
         with self.assertRaises(agent.AgentError) as caught:
             agent.to_json({1, 2, 3})
         self.assertEqual(caught.exception.kind, "invalid_result")
+
+    def test_to_json_names_the_bad_value(self) -> None:
+        with self.assertRaises(agent.AgentError) as caught:
+            agent.to_json({"ids": [1, {2}]})
+        self.assertIn("set at result['ids'][1]", caught.exception.message)
+        self.assertIn("list(...)", caught.exception.message)
+
+    def test_to_json_converts_nested_results(self) -> None:
+        from agent._types import FileEntry, GlobResult
+
+        self.assertEqual(
+            agent.to_json({"found": GlobResult(entries=(FileEntry("a"),))}),
+            {"found": {"entries": [{"path": "a", "type": "file"}], "truncated": False}},
+        )
+
+    def test_to_error_reports_the_failing_program_line(self) -> None:
+        def Run():
+            return {}["missing"]
+
+        try:
+            Run()
+        except KeyError as error:
+            body = agent.to_error(error)
+        self.assertEqual(body["kind"], "exception")
+        self.assertEqual(body["message"], "KeyError: 'missing'")
+        self.assertIn("in Run", body["trace"])
+        self.assertIn('{}["missing"]', body["trace"])
 
     def test_to_error(self) -> None:
         self.assertEqual(
