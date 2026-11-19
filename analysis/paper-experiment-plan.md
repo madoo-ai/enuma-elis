@@ -406,9 +406,9 @@ example 10% of native time or tokens.
 ### 8.4 Failure taxonomy
 
 A rule-based classifier labels every failed program with a codebook derived
-from the observed quirks. Ambiguous cases are inspected by one author against a
-fixed decision table, with the rule and the manual decision recorded. Report
-counts and rates per condition. Separate:
+from the observed quirks. Ambiguous cases fall into `other` and are listed in
+the appendix with their raw messages. Report counts and rates per condition.
+Separate:
 
 - interface errors (import, shape, attribute, command);
 - capability errors (missing tool, permission, timeout);
