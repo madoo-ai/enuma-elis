@@ -8,6 +8,7 @@ of the fields it needs.
 from __future__ import annotations
 
 import difflib
+import re
 from dataclasses import dataclass, fields, is_dataclass
 from typing import Any, Union
 
@@ -465,6 +466,29 @@ class Screenshot(_Result):
 
         return base64.b64decode(self.data)
 
+    def save(self, path: str) -> str:
+        """Write the image to ``path`` and return it.
+
+        A sandboxed program cannot read the host's screenshot path, so this
+        writes the bytes that crossed the bridge. It copies the host path only
+        when no bytes came and that path is readable.
+        """
+
+        import os
+        import shutil
+
+        data = self.bytes
+        directory = os.path.dirname(os.path.abspath(path))
+        os.makedirs(directory, exist_ok=True)
+        if data:
+            with open(path, "wb") as handle:
+                handle.write(data)
+        elif self.path and os.path.exists(self.path):
+            shutil.copyfile(self.path, path)
+        else:
+            raise AgentError("not_found", f"screenshot has no bytes and {self.path!r} is not readable here")
+        return path
+
 
 @dataclass(frozen=True)
 class TaskResult(_Result):
@@ -538,3 +562,216 @@ def parse_todos(data: Any) -> tuple[Todo, ...]:
         for row in _list(rows)
         if isinstance(row, dict)
     )
+
+
+# --- browser ---------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Node(_Result):
+    """One line of an accessibility snapshot."""
+
+    role: str
+    name: str = ""
+    ref: str | None = None
+    value: str | None = None
+    level: int | None = None
+    depth: int = 0
+    flags: tuple[str, ...] = ()
+
+    @property
+    def target(self) -> str | None:
+        """The ``@ref`` to pass to click, fill, and the other element actions."""
+
+        return f"@{self.ref}" if self.ref else None
+
+
+@dataclass(frozen=True)
+class ConsoleMessage(_Result):
+    type: str
+    text: str
+
+
+@dataclass(frozen=True)
+class PageError(_Result):
+    text: str
+    line: int | None = None
+    column: int | None = None
+    url: str | None = None
+
+
+@dataclass(frozen=True)
+class Request(_Result):
+    url: str
+    method: str = "GET"
+    status: int | None = None
+    type: str = ""
+    mime: str = ""
+
+    @property
+    def ok(self) -> bool:
+        """False for an error status and for a request that never got one."""
+
+        return self.status is not None and self.status < 400
+
+
+@dataclass(frozen=True)
+class Tab(_Result):
+    id: str
+    url: str = ""
+    title: str = ""
+    active: bool = False
+
+
+@dataclass(frozen=True)
+class Diff(_Result):
+    changed: bool
+    additions: int = 0
+    removals: int = 0
+    text: str = ""
+
+    def __str__(self) -> str:
+        return self.text
+
+
+@dataclass(frozen=True)
+class PageReport(_Result):
+    url: str
+    title: str
+    console_errors: tuple[ConsoleMessage, ...] = ()
+    console_warnings: tuple[ConsoleMessage, ...] = ()
+    page_errors: tuple[PageError, ...] = ()
+    failed_requests: tuple[Request, ...] = ()
+
+    @property
+    def ok(self) -> bool:
+        """True when there are no console errors, page errors, or failed requests."""
+
+        return not (self.console_errors or self.page_errors or self.failed_requests)
+
+
+_NODE = re.compile(r'^(?P<indent>\s*)- (?P<role>[^\s"\[:]+)(?: "(?P<name>(?:[^"\\]|\\.)*)")?(?P<rest>.*)$')
+_BRACKET = re.compile(r"\[([^\]]*)\]")
+
+
+def parse_snapshot(text: str) -> tuple[Node, ...]:
+    """Parse the snapshot tree into nodes. Lines that do not parse are skipped."""
+
+    nodes: list[Node] = []
+    for line in str(text).splitlines():
+        found = _NODE.match(line)
+        if not found:
+            continue
+        rest = found.group("rest")
+        ref = None
+        level = None
+        flags: list[str] = []
+        for group in _BRACKET.findall(rest):
+            for item in (part.strip() for part in group.split(",")):
+                key, _, value = item.partition("=")
+                if key == "ref":
+                    ref = value
+                elif key == "level":
+                    level = int(value) if value.isdigit() else None
+                elif item:
+                    flags.append(item)
+        tail = _BRACKET.sub("", rest).strip()
+        value = tail[1:].strip() if tail.startswith(":") else None
+        name = found.group("name")
+        nodes.append(
+            Node(
+                role=found.group("role"),
+                name=name.replace('\\"', '"') if name else "",
+                ref=ref,
+                value=value or None,
+                level=level,
+                depth=len(found.group("indent")) // 2,
+                flags=tuple(flags),
+            )
+        )
+    return tuple(nodes)
+
+
+def _items(text: Any, key: str) -> list[Any]:
+    """The list under ``key`` of a JSON reply, or [] when the reply is not that."""
+
+    import json
+
+    try:
+        data = json.loads(text) if isinstance(text, str) else text
+    except ValueError:
+        return []
+    if isinstance(data, dict) and isinstance(data.get(key), list):
+        return data[key]
+    return data if isinstance(data, list) else []
+
+
+def parse_console(text: Any) -> tuple[ConsoleMessage, ...]:
+    rows = _items(text, "messages")
+    if not rows and isinstance(text, str) and text.strip() and not text.lstrip().startswith(("{", "[")):
+        return (ConsoleMessage("log", text.strip()),)
+    return tuple(
+        ConsoleMessage(type=str(row.get("type", "log")), text=str(row.get("text", "")))
+        for row in rows
+        if isinstance(row, dict)
+    )
+
+
+def parse_page_errors(text: Any) -> tuple[PageError, ...]:
+    rows = _items(text, "errors")
+    if not rows and isinstance(text, str) and text.strip() and not text.lstrip().startswith(("{", "[")):
+        return (PageError(text.strip()),)
+    return tuple(
+        PageError(
+            text=str(row.get("text", "")),
+            line=row.get("line"),
+            column=row.get("column"),
+            url=row.get("url"),
+        )
+        for row in rows
+        if isinstance(row, dict)
+    )
+
+
+def parse_requests(text: Any) -> tuple[Request, ...]:
+    return tuple(
+        Request(
+            url=str(row.get("url", "")),
+            method=str(row.get("method", "GET")),
+            status=row.get("status"),
+            type=str(row.get("resourceType", "")),
+            mime=str(row.get("mimeType", "")),
+        )
+        for row in _items(text, "requests")
+        if isinstance(row, dict)
+    )
+
+
+def parse_tabs(text: Any) -> tuple[Tab, ...]:
+    return tuple(
+        Tab(
+            id=str(row.get("tabId", row.get("id", ""))),
+            url=str(row.get("url", "")),
+            title=str(row.get("title", "")),
+            active=bool(row.get("active", False)),
+        )
+        for row in _items(text, "tabs")
+        if isinstance(row, dict)
+    )
+
+
+def parse_diff(text: Any) -> Diff:
+    import json
+
+    try:
+        data = json.loads(text) if isinstance(text, str) else text
+    except ValueError:
+        data = None
+    if isinstance(data, dict):
+        return Diff(
+            changed=bool(data.get("changed", False)),
+            additions=int(data.get("additions", 0)),
+            removals=int(data.get("removals", 0)),
+            text=str(data.get("diff", "")),
+        )
+    return Diff(changed=bool(str(text).strip()), text=str(text))

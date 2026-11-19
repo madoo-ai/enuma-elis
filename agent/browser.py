@@ -12,13 +12,32 @@ before acting; ``@ref`` values expire when the page changes.
 
 from __future__ import annotations
 
+import functools
 import json
+import os
 import time
-from typing import Any
+import urllib.parse
+from typing import Any, Callable
 
 from . import current_client
 from ._errors import AgentError
-from ._types import Screenshot, parse_screenshot
+from ._types import (
+    ConsoleMessage,
+    Diff,
+    Node,
+    PageError,
+    PageReport,
+    Request,
+    Screenshot,
+    Tab,
+    parse_console,
+    parse_diff,
+    parse_page_errors,
+    parse_requests,
+    parse_screenshot,
+    parse_snapshot,
+    parse_tabs,
+)
 
 
 def _decoded(text: str) -> Any:
@@ -40,11 +59,143 @@ def _get_value(what: str, text: str) -> Any:
     return data
 
 
-_STRING_FIELDS = {"text", "url", "target", "selector", "name", "what", "script", "locator", "into"}
+def _recorded(method: Callable[..., Any]) -> Callable[..., Any]:
+    """Log a successful action as a line of Python for ``Page.to_script``."""
+
+    @functools.wraps(method)
+    def wrapper(self: "Page", *args: Any, **kwargs: Any) -> Any:
+        result = method(self, *args, **kwargs)
+        if not self._muted:
+            note = ""
+            if any(isinstance(arg, str) and arg.startswith("@e") for arg in args):
+                note = "  # a ref from an earlier snapshot; use find_one(...) for a replayable script"
+            self._log(f"page.{method.__name__}({_call_args(args, kwargs)}){note}")
+        return result
+
+    return wrapper
+
+
+def _call_args(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
+    parts = [repr(arg) for arg in args] + [f"{key}={value!r}" for key, value in kwargs.items()]
+    return ", ".join(parts)
+
+
+_RETRY_KINDS = {"tool_failed", "not_found"}
+
+
+class Element:
+    """A page element found by role and name, not by a ref that can expire.
+
+    Each action tries the current ref. If the tool fails, the handle takes a
+    fresh snapshot, looks for the same role and name (and the same position
+    among matches), and retries once. The snapshot itself is what makes a ref
+    valid again, so the retry happens even when the number is unchanged. If the
+    element is gone, or the retry fails, the error is raised as it is.
+    """
+
+    def __init__(self, page: "Page", node: Node, nth: int, full: bool) -> None:
+        self.page = page
+        self.role = node.role
+        self.name = node.name
+        self.value = node.value
+        self.nth = nth
+        self.full = full
+        self.ref = node.ref
+
+    def __repr__(self) -> str:
+        return f"Element(role={self.role!r}, name={self.name!r}, ref={self.ref!r})"
+
+    @property
+    def target(self) -> str:
+        return f"@{self.ref}"
+
+    def _resolve(self) -> str | None:
+        matches = self.page.find_all(role=self.role, name=self.name, full=self.full)
+        return matches[self.nth].ref if len(matches) > self.nth else None
+
+    def _expression(self, action: str, *args: Any) -> str:
+        spec = _call_args((), {"role": self.role, "name": self.name} | ({"nth": self.nth} if self.nth else {}))
+        return f"page.find_one({spec}).{action}({_call_args(args, {})})"
+
+    def _act(self, action: str, method: Callable[..., Any], *args: Any, record: bool = True) -> Any:
+        page = self.page
+        page._muted += 1
+        try:
+            try:
+                result = method(self.target, *args)
+            except AgentError as error:
+                if error.kind not in _RETRY_KINDS:
+                    raise
+                fresh = self._resolve()
+                if fresh is None:
+                    raise
+                self.ref = fresh
+                result = method(self.target, *args)
+        finally:
+            page._muted -= 1
+        if record and not page._muted:
+            page._log(self._expression(action, *args))
+        return result
+
+    def click(self) -> str:
+        return self._act("click", self.page.click)
+
+    def dblclick(self) -> str:
+        return self._act("dblclick", self.page.dblclick)
+
+    def hover(self) -> str:
+        return self._act("hover", self.page.hover)
+
+    def focus(self) -> str:
+        return self._act("focus", self.page.focus)
+
+    def check(self) -> str:
+        return self._act("check", self.page.check)
+
+    def uncheck(self) -> str:
+        return self._act("uncheck", self.page.uncheck)
+
+    def fill(self, text: str) -> str:
+        return self._act("fill", self.page.fill, text)
+
+    def type(self, text: str) -> str:
+        return self._act("type", self.page.type, text)
+
+    def select(self, value: str) -> str:
+        return self._act("select", self.page.select, value)
+
+    def scroll_into_view(self) -> str:
+        return self._act("scroll_into_view", self.page.scroll_into_view)
+
+    def text(self) -> str:
+        return str(self._act("text", lambda target: self.page.get("text", target), record=False))
+
+    def input_value(self) -> str:
+        return str(self._act("input_value", lambda target: self.page.get("value", target), record=False))
+
+    def box(self) -> dict[str, float]:
+        return self._act("box", lambda target: self.page.get("box", target), record=False)
+
+    def is_visible(self) -> bool:
+        return bool(self._act("is_visible", lambda target: self.page.is_("visible", target), record=False))
+
+
+_STRING_FIELDS = {"text", "url", "target", "selector", "name", "what", "script", "locator", "into", "input"}
 
 
 class Page:
-    """A stateless façade over the session's one browser page."""
+    """A façade over the session's one browser page.
+
+    The page itself is not held here; every call goes to the shared browser. An
+    instance only remembers the actions it ran, for :meth:`to_script`.
+    """
+
+    def __init__(self) -> None:
+        self.history: list[str] = []
+        self._muted = 0
+
+    def _log(self, line: str) -> None:
+        self.history.append(line)
 
     def _raw(self, action: str, **fields: Any) -> Any:
         payload: dict[str, Any] = {"action": action}
@@ -66,21 +217,26 @@ class Page:
         return str(value)
 
     # Navigating.
+    @_recorded
     def goto(self, url: str) -> str:
         return self._text("navigate", url=url)
 
     def open(self, url: str) -> str:
         return self.goto(url)
 
+    @_recorded
     def back(self) -> str:
         return self._text("back")
 
+    @_recorded
     def forward(self) -> str:
         return self._text("forward")
 
+    @_recorded
     def reload(self) -> str:
         return self._text("reload")
 
+    @_recorded
     def push_state(self, url: str) -> str:
         return self._text("pushstate", url=url)
 
@@ -152,7 +308,14 @@ class Page:
         action: str,
         name: str | None = None,
         exact: bool = False,
+        input: str | None = None,
     ) -> str:
+        """Locate by role, text, label, ... and act at once.
+
+        ``input`` is the text for a ``fill`` or ``type`` action:
+        ``find("label", "Email", "fill", input="a@b.c")``.
+        """
+
         return self._text(
             "find",
             locator=locator,
@@ -160,54 +323,74 @@ class Page:
             what=action,
             name=name,
             exact=exact,
+            input=input,
         )
 
-    def console(self, clear: bool = False) -> str:
-        return self._text("console", clear=clear)
+    def console(self, clear: bool = False) -> tuple[ConsoleMessage, ...]:
+        """Console messages: each has ``type`` (log, warning, error) and ``text``."""
 
-    def errors(self, clear: bool = False) -> str:
-        return self._text("errors", clear=clear)
+        return parse_console(self._text("console", clear=clear))
 
-    def network(self) -> str:
-        return self._text("network")
+    def errors(self, clear: bool = False) -> tuple[PageError, ...]:
+        """Uncaught JavaScript errors: ``text``, ``line``, ``column``, ``url``."""
+
+        return parse_page_errors(self._text("errors", clear=clear))
+
+    def network(self) -> tuple[Request, ...]:
+        """Requests the page made: ``url``, ``method``, ``status``, ``type``, ``ok``."""
+
+        return parse_requests(self._text("network"))
 
     def vitals(self, url: str | None = None) -> str:
         return self._text("vitals", url=url)
 
-    def diff(self) -> str:
-        return self._text("diff")
+    def diff(self) -> Diff:
+        """What changed in the snapshot since the last one."""
+
+        return parse_diff(self._text("diff"))
 
     # Acting on the page.
+    @_recorded
     def click(self, target: str) -> str:
         return self._text("click", target=target)
 
+    @_recorded
     def dblclick(self, target: str) -> str:
         return self._text("dblclick", target=target)
 
+    @_recorded
     def hover(self, target: str) -> str:
         return self._text("hover", target=target)
 
+    @_recorded
     def focus(self, target: str) -> str:
         return self._text("focus", target=target)
 
+    @_recorded
     def check(self, target: str) -> str:
         return self._text("check", target=target)
 
+    @_recorded
     def uncheck(self, target: str) -> str:
         return self._text("uncheck", target=target)
 
+    @_recorded
     def select(self, target: str, value: str) -> str:
         return self._text("select", target=target, text=value)
 
+    @_recorded
     def fill(self, target: str, text: str) -> str:
         return self._text("fill", target=target, text=text)
 
+    @_recorded
     def type(self, target: str, text: str) -> str:
         return self._text("type", target=target, text=text)
 
+    @_recorded
     def press(self, key: str) -> str:
         return self._text("press", text=key)
 
+    @_recorded
     def keyboard_type(self, text: str) -> str:
         return self._text("keyboard", text=text)
 
@@ -217,6 +400,7 @@ class Page:
     def keyboard_insert(self, text: str) -> str:
         return self._text("keyboardinsert", text=text)
 
+    @_recorded
     def scroll(
         self,
         direction: str = "down",
@@ -231,6 +415,7 @@ class Page:
             )
         return self._text("scroll", text=direction, px=px, selector=selector)
 
+    @_recorded
     def scroll_into_view(self, target: str) -> str:
         return self._text("scrollintoview", target=target)
 
@@ -261,6 +446,7 @@ class Page:
     def wait(self, target: str) -> str:
         return self._text("wait", target=target)
 
+    @_recorded
     def wait_ms(self, milliseconds: int) -> str:
         return self._text("waitms", text=str(milliseconds))
 
@@ -271,23 +457,97 @@ class Page:
         timed out on pages that plainly contained the text.
         """
 
-        deadline = time.monotonic() + timeout
-        while True:
-            if text in str(self.get("text", "body")):
-                return text
-            if time.monotonic() >= deadline:
-                raise AgentError("timeout", f"text {text!r} did not appear within {timeout:g}s")
-            time.sleep(0.25)
+        self.until(
+            lambda: text in str(self.get("text", "body")),
+            timeout=timeout,
+            message=f"text {text!r} did not appear within {timeout:g}s",
+        )
+        return text
 
+    def wait_gone(self, text: str, timeout: float = 30.0) -> str:
+        """Wait until the page's visible text no longer contains ``text``."""
+
+        self.until(
+            lambda: text not in str(self.get("text", "body")),
+            timeout=timeout,
+            message=f"text {text!r} was still there after {timeout:g}s",
+        )
+        return text
+
+    def wait_count(self, selector: str, count: int, timeout: float = 30.0) -> int:
+        """Wait until ``selector`` matches exactly ``count`` elements."""
+
+        self.until(
+            lambda: self.get("count", selector) == count,
+            timeout=timeout,
+            message=f"{selector!r} did not reach {count} matches within {timeout:g}s",
+        )
+        return count
+
+    def wait_for(
+        self,
+        role: str | None = None,
+        name: str | None = None,
+        contains: str | None = None,
+        timeout: float = 30.0,
+        full: bool = False,
+    ) -> "Element":
+        """Wait for an element by role and name, and return its handle."""
+
+        def found() -> "Element | None":
+            matches = self.find_all(role=role, name=name, contains=contains, full=full)
+            return self._element(matches, 0, full) if matches else None
+
+        return self.until(
+            found,
+            timeout=timeout,
+            message=f"no element role={role!r} name={name!r} contains={contains!r} within {timeout:g}s",
+        )
+
+    def until(
+        self,
+        predicate: Callable[[], Any],
+        timeout: float = 30.0,
+        interval: float = 0.25,
+        message: str | None = None,
+    ) -> Any:
+        """Call ``predicate`` until it returns something truthy, and return that.
+
+        A tool failure inside the predicate counts as "not yet" and is kept for
+        the final error. A refused or unavailable call is raised at once.
+        """
+
+        deadline = time.monotonic() + timeout
+        last: AgentError | None = None
+        while True:
+            try:
+                value = predicate()
+                if value:
+                    return value
+            except AgentError as error:
+                if error.kind in {"unavailable", "permission_denied", "invalid_input", "invalid_argument"}:
+                    raise
+                last = error
+            if time.monotonic() >= deadline:
+                reason = message or f"condition not met within {timeout:g}s"
+                if last is not None:
+                    reason += f"; last error: {last}"
+                raise AgentError("timeout", reason)
+            time.sleep(interval)
+
+    @_recorded
     def wait_url(self, url: str) -> str:
         return self._text("waiturl", url=url)
 
+    @_recorded
     def wait_load(self, state: str) -> str:
         return self._text("waitload", text=state)
 
+    @_recorded
     def wait_function(self, script: str) -> str:
         return self._text("waitfn", script=script)
 
+    @_recorded
     def wait_state(self, target: str, state: str) -> str:
         return self._text("waitstate", target=target, text=state)
 
@@ -295,15 +555,19 @@ class Page:
         return self._text("waitdownload", text=path)
 
     # Tabs. No close: the human's tab is not ours to remove.
+    @_recorded
     def tab_new(self, url: str | None = None) -> str:
         return self._text("tabnew", url=url)
 
-    def tab_list(self) -> str:
-        return self._text("tablist")
+    def tab_list(self) -> tuple[Tab, ...]:
+        """Open tabs: ``id``, ``url``, ``title``, ``active``."""
 
-    def tabs(self) -> str:
+        return parse_tabs(self._text("tablist"))
+
+    def tabs(self) -> tuple[Tab, ...]:
         return self.tab_list()
 
+    @_recorded
     def tab_select(self, target: str) -> str:
         return self._text("tabselect", target=target)
 
@@ -313,11 +577,21 @@ class Page:
         path: str | None = None,
         full: bool = False,
         selector: str | None = None,
+        save: str | None = None,
     ) -> Screenshot:
+        """Capture the page or one element.
+
+        ``save="out.png"`` also writes the image into the program's workspace,
+        which a sandboxed program cannot do with the host's ``path``.
+        """
+
         value = self._raw("screenshot", text=path, full=full, selector=selector)
         if isinstance(value, str):
             value = {"path": value}
-        return parse_screenshot(value)
+        shot = parse_screenshot(value)
+        if save:
+            shot.save(save)
+        return shot
 
     def pdf(self, path: str) -> str:
         return self._text("pdf", text=path)
@@ -340,6 +614,198 @@ class Page:
     def eval(self, script: str) -> Any:
         return self.evaluate(script)
 
+    # Structure: find elements by role and name instead of reading refs.
+    def nodes(self, full: bool = False, **snapshot: Any) -> tuple[Node, ...]:
+        """The snapshot as nodes with ``role``, ``name``, ``ref``, ``value``.
+
+        By default only interactive nodes appear; ``full=True`` adds the rest
+        (text, structure).
+        """
+
+        return parse_snapshot(self.snapshot(full=full, **snapshot))
+
+    def find_all(
+        self,
+        role: str | None = None,
+        name: str | None = None,
+        contains: str | None = None,
+        full: bool = False,
+        nodes: tuple[Node, ...] | None = None,
+    ) -> list[Node]:
+        """Nodes with a ref that match ``role``, exact ``name``, or ``contains``.
+
+        ``contains`` is a case-insensitive substring of the name or value.
+        """
+
+        pool = nodes if nodes is not None else self.nodes(full=full)
+        out = []
+        for node in pool:
+            if not node.ref:
+                continue
+            if role is not None and node.role != role:
+                continue
+            if name is not None and node.name != name:
+                continue
+            if contains is not None:
+                haystack = f"{node.name} {node.value or ''}".lower()
+                if contains.lower() not in haystack:
+                    continue
+            out.append(node)
+        return out
+
+    def _element(self, matches: list[Node], nth: int, full: bool) -> Element:
+        return Element(self, matches[nth], nth, full)
+
+    def find_one(
+        self,
+        role: str | None = None,
+        name: str | None = None,
+        contains: str | None = None,
+        nth: int = 0,
+        full: bool = False,
+    ) -> Element:
+        """Return a handle to one element, or raise ``not_found`` listing what exists."""
+
+        pool = self.nodes(full=full)
+        matches = self.find_all(role=role, name=name, contains=contains, nodes=pool)
+        if len(matches) <= nth:
+            seen = ", ".join(f"{node.role} {node.name!r}" for node in pool if node.ref)[:400]
+            raise AgentError(
+                "not_found",
+                f"no element role={role!r} name={name!r} contains={contains!r} (match {nth}); "
+                f"page has: {seen or 'no interactive elements'}",
+            )
+        return self._element(matches, nth, full)
+
+    # Extraction: fixed scripts, so a program does not write its own JavaScript.
+    def links(self) -> list[dict[str, str]]:
+        """Every link as ``{"text", "href"}``."""
+
+        return self.evaluate(
+            "[...document.querySelectorAll('a[href]')]"
+            ".map(a => ({text: a.innerText.trim(), href: a.href}))"
+        )
+
+    def headings(self) -> list[dict[str, Any]]:
+        """Every heading as ``{"level", "text"}``."""
+
+        return self.evaluate(
+            "[...document.querySelectorAll('h1,h2,h3,h4,h5,h6')]"
+            ".map(h => ({level: Number(h.tagName[1]), text: h.innerText.trim()}))"
+        )
+
+    def forms(self) -> list[dict[str, Any]]:
+        """Every form with its action, method, and fields (name, type, label, value)."""
+
+        return self.evaluate(
+            "[...document.forms].map(f => ({"
+            "action: f.action, method: f.method,"
+            "fields: [...f.elements].filter(e => e.name || e.id).map(e => ({"
+            "name: e.name || e.id, type: e.type || e.tagName.toLowerCase(),"
+            "label: (e.labels && e.labels[0] ? e.labels[0].innerText.trim() : e.getAttribute('aria-label')),"
+            "value: e.value}))}))"
+        )
+
+    def table(self, selector: str = "table") -> list[dict[str, str]]:
+        """A table as a list of rows keyed by header text.
+
+        Headers come from ``th`` cells of the first row. A table without them
+        gives keys ``"0"``, ``"1"``, ...
+        """
+
+        script = (
+            "(() => { const t = document.querySelector(%s); if (!t) return null;"
+            "const rows = [...t.rows].map(r => [...r.cells].map(c => c.innerText.trim()));"
+            "const head = t.rows[0] && [...t.rows[0].cells].every(c => c.tagName === 'TH');"
+            "return {head, rows}; })()" % json.dumps(selector)
+        )
+        data = self.evaluate(script)
+        if not isinstance(data, dict):
+            raise AgentError("not_found", f"no table matches {selector!r}")
+        rows = data["rows"]
+        if data.get("head") and rows:
+            headers, rows = rows[0], rows[1:]
+        else:
+            headers = [str(index) for index in range(len(rows[0]) if rows else 0)]
+        return [dict(zip(headers, row)) for row in rows]
+
+    def extract(self, fields: dict[str, str]) -> dict[str, Any]:
+        """Read several values at once.
+
+        Each value is a CSS selector: ``"h1"`` is the first match's text,
+        ``"a.more@href"`` is an attribute, and ``"li.item[]"`` is every match's
+        text as a list. A selector that matches nothing gives ``None`` (or ``[]``).
+        """
+
+        script = (
+            "((spec) => Object.fromEntries(Object.entries(spec).map(([key, sel]) => {"
+            "const all = sel.endsWith('[]'); if (all) sel = sel.slice(0, -2);"
+            "const at = sel.lastIndexOf('@'); const attr = at > 0 ? sel.slice(at + 1) : null;"
+            "if (attr) sel = sel.slice(0, at);"
+            "const read = e => attr ? e.getAttribute(attr) : e.innerText.trim();"
+            "return [key, all ? [...document.querySelectorAll(sel)].map(read)"
+            " : (e => e ? read(e) : null)(document.querySelector(sel))];"
+            "})))(%s)" % json.dumps(fields)
+        )
+        return self.evaluate(script)
+
+    # Reports.
+    def audit(self, url: str | None = None) -> PageReport:
+        """Load ``url`` (optional) and report console errors, page errors, and failed requests.
+
+        With a ``url`` the console and error logs are cleared first, so the
+        report covers only this load. Network history cannot be cleared, so it
+        can include earlier requests.
+        """
+
+        if url:
+            self.console(clear=True)
+            self.errors(clear=True)
+            self.goto(url)
+        console = self.console()
+        return PageReport(
+            url=self.url(),
+            title=self.title(),
+            console_errors=tuple(m for m in console if m.type == "error"),
+            console_warnings=tuple(m for m in console if m.type in ("warning", "warn")),
+            page_errors=self.errors(),
+            failed_requests=tuple(r for r in self.network() if not r.ok),
+        )
+
+    def goto_file(self, path: str) -> str:
+        """Open a workspace file as a ``file://`` URL."""
+
+        return self.goto("file://" + urllib.parse.quote(os.path.abspath(path)))
+
+    # Frames. There is no dialog method: the browser auto-dismisses alerts.
+    def frame(self, selector: str) -> str:
+        """Send later actions into an iframe. Return with ``main_frame()``."""
+
+        return self._text("frame", target=selector)
+
+    def main_frame(self) -> str:
+        return self._text("frame", target="main")
+
+    # Replay.
+    def to_script(self) -> str:
+        """The actions this page object ran, as a program that replays them."""
+
+        body = [f"    {line}" for line in self.history] or ["    pass"]
+        return "\n".join(
+            [
+                "from agent import browser",
+                "",
+                "",
+                "def Run(ctx, a):",
+                "    page = browser.page()",
+                *body,
+                '    return {"title": page.title(), "url": page.url()}',
+                "",
+            ]
+        )
+
+
+
 
 def page() -> Page:
     """Return the façade for the session browser.
@@ -351,7 +817,7 @@ def page() -> Page:
     return Page()
 
 
-__all__ = ["Page", "Screenshot", "page"]
+__all__ = ["Element", "Page", "Screenshot", "page"]
 
 
 def __dir__() -> list[str]:
