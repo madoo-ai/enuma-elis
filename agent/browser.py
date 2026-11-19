@@ -540,7 +540,7 @@ class Page:
         return self._text("waiturl", url=url)
 
     @_recorded
-    def wait_load(self, state: str) -> str:
+    def wait_load(self, state: str = "load") -> str:
         return self._text("waitload", text=state)
 
     @_recorded

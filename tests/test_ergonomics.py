@@ -55,6 +55,18 @@ class ResultAccessTest(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertEqual(agent.to_json(result), {"exit": 2, "output": "o", "truncated": False, "timed_out": False})
 
+    def test_write_and_edit_results_have_a_path(self) -> None:
+        from agent._types import EditResult, WriteResult
+
+        self.assertEqual(WriteResult(file="a", bytes=1, created=True)["path"], "a")
+        self.assertEqual(EditResult("b", 1, 0, 0).path, "b")
+
+    def test_verdicts_are_in_json(self) -> None:
+        from agent._types import PageReport, Request
+
+        self.assertEqual(agent.to_json(PageReport("u", "t"))["ok"], True)
+        self.assertEqual(agent.to_json(Request("u", status=500))["ok"], False)
+
     def test_json_drops_empty_fields(self) -> None:
         self.assertEqual(agent.to_json(Text("a", "b")), {"path": "a", "text": "b", "truncated": False, "kind": "file"})
 

@@ -50,6 +50,8 @@ class _Result:
     """
 
     _JSON_SKIP: tuple[str, ...] = ()
+    # Properties that belong in JSON because they carry a verdict.
+    _JSON_EXTRA: tuple[str, ...] = ()
 
     @classmethod
     def _names(cls) -> list[str]:
@@ -289,12 +291,24 @@ class EditResult(_Result):
     deletions: int
     patch: str = ""
 
+    @property
+    def path(self) -> str:
+        """Alias for :attr:`file`, matching ``fs.read`` results."""
+
+        return self.file
+
 
 @dataclass(frozen=True)
 class WriteResult(_Result):
     file: str
     bytes: int
     created: bool
+
+    @property
+    def path(self) -> str:
+        """Alias for :attr:`file`, matching ``fs.read`` results."""
+
+        return self.file
 
 
 @dataclass(frozen=True)
@@ -608,6 +622,8 @@ class Request(_Result):
     type: str = ""
     mime: str = ""
 
+    _JSON_EXTRA = ("ok",)
+
     @property
     def ok(self) -> bool:
         """False for an error status and for a request that never got one."""
@@ -642,6 +658,8 @@ class PageReport(_Result):
     console_warnings: tuple[ConsoleMessage, ...] = ()
     page_errors: tuple[PageError, ...] = ()
     failed_requests: tuple[Request, ...] = ()
+
+    _JSON_EXTRA = ("ok",)
 
     @property
     def ok(self) -> bool:

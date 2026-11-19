@@ -208,16 +208,16 @@ def to_json(value: Any, _path: str = "result") -> Any:
         return {str(key): to_json(item, f"{_path}[{key!r}]") for key, item in value.items()}
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         skip = getattr(value, "_JSON_SKIP", ())
-        return to_json(
-            {
-                field.name: item
-                for field in dataclasses.fields(value)
-                if field.name not in skip
-                for item in [getattr(value, field.name)]
-                if item is not None
-            },
-            _path,
-        )
+        data = {
+            field.name: item
+            for field in dataclasses.fields(value)
+            if field.name not in skip
+            for item in [getattr(value, field.name)]
+            if item is not None
+        }
+        for name in getattr(value, "_JSON_EXTRA", ()):
+            data[name] = getattr(value, name)
+        return to_json(data, _path)
     hint = {
         "set": "convert it with sorted(...) or list(...)",
         "frozenset": "convert it with sorted(...) or list(...)",

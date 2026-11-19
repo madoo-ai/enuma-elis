@@ -143,3 +143,28 @@ Status values: `todo`, `done`.
 - A `dialog` action (see B9).
 - `network har`: the file lands on the host, not in the program's workspace.
 - The scratch browser itself (design note only).
+
+## Validation
+
+- Unit tests: 100 pass (9 live tests skipped by default).
+- Live tests against a real Chromium through `agent-browser`: 9 pass. They cover
+  node parsing, stale-ref recovery after a reload, `find ... fill` with input,
+  typed console, error, network and tab lists, audit, extraction, polling, and
+  screenshot save plus `to_script`.
+- Scenario `browser_helpers` on the rebuilt binary, shared browser, model-driven.
+  The model wrote a to-do page, added two items through element handles, read
+  the list with `extract`, audited the page, and saved `shot.png` (9031 bytes)
+  into the workspace. Its third program did all of it.
+
+What the scenario found, and the fix:
+
+| Observed | Fix |
+| --- | --- |
+| `page.wait_load()` with no state raised `TypeError` | `state` defaults to `"load"` |
+| `write_result["path"]` raised `KeyError` | `WriteResult.path` and `EditResult.path` alias `file` |
+| The audit JSON had no `ok`, so the model recomputed it | `ok` is included in JSON for `PageReport` and `Request` |
+| In unbounded mode no screenshot bytes cross the bridge | `Screenshot.save` copies the host path as a fallback (worked: 9031 bytes) |
+
+Known limit: in `bwrap` mode the host path is not readable, so `save` relies on
+the bytes the bridge forwards. That path is covered by a unit test but was not
+run live, because `bubblewrap` could not be installed in the harness container.
