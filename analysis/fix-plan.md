@@ -1,5 +1,8 @@
 # Fix plan from the harness analysis
 
+Status: **phases 1 and 2 are implemented and validated.** Phase 3 remains
+deferred.
+
 Source analysis: [`analysis/harness-2026-11-19/report.pdf`](harness-2026-11-19/report.pdf)
 
 Goal: remove the model-facing friction we actually observed: bad import guesses,
@@ -201,6 +204,26 @@ These are real but not needed for this batch:
 - LSP.
 - Splitting the browser action enum into multiple tools.
 - Cancellation for already-running in-program jobs.
+
+## Validation
+
+After phase 1:
+
+- Python SDK: 43/43 tests.
+- Fork tool tests: 48/48 tests.
+- Fork typecheck: clean.
+- Rebuilt the fork binary.
+- Ran `prompt_fixcheck` with `fs,web`: one program used `agent.jobs.start`,
+  collected both results, and returned the correct line count and paths in 4.4s
+  with zero audited raw opens/execs/sockets.
+
+After phase 2:
+
+- `harness/scenarios.sh` and `harness/provenance.sh` added.
+- Provenance includes fork commit, binary version and SHA256, base image, agent,
+  modules, sandbox, workspace mode, network mode, raw-exec policy, and relevant
+  feature flags.
+- Broad tool tests: 400/400.
 
 ## Checks
 
