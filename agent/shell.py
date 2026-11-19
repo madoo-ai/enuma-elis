@@ -33,12 +33,14 @@ def run(
     if timeout is not None:
         payload["timeout"] = timeout
     result = parse_shell(current_client().call("shell.run", payload))
-    if check and result.exit != 0:
-        raise AgentError(
-            "tool_failed",
-            f"command exited with {result.exit}: {command}",
-            {"exit": result.exit, "output": result.output},
+    if check and (result.exit != 0 or result.timed_out):
+        kind = "timeout" if result.timed_out else "tool_failed"
+        message = (
+            f"command timed out: {command}"
+            if result.timed_out
+            else f"command exited with {result.exit}: {command}"
         )
+        raise AgentError(kind, message, {"exit": result.exit, "output": result.output, "timed_out": result.timed_out})
     return result
 
 

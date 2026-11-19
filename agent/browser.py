@@ -327,6 +327,7 @@ class Page:
             result = bool(value)
         return not result if what in _INVERSE else result
 
+    @_recorded
     def find(
         self,
         locator: str,
@@ -423,6 +424,7 @@ class Page:
     def keyboard(self, text: str) -> str:
         return self.keyboard_type(text)
 
+    @_recorded
     def keyboard_insert(self, text: str) -> str:
         return self._text("keyboardinsert", text=text)
 
@@ -445,30 +447,38 @@ class Page:
     def scroll_into_view(self, target: str) -> str:
         return self._text("scrollintoview", target=target)
 
+    @_recorded
     def drag(self, source: str, destination: str) -> str:
         return self._text("drag", target=source, into=destination)
 
+    @_recorded
     def upload(self, target: str, *files: str) -> str:
         if not files:
             raise AgentError("invalid_argument", "upload needs at least one file path")
         return self._text("upload", target=target, text=",".join(files))
 
+    @_recorded
     def download(self, target: str, path: str) -> str:
         return self._text("download", target=target, text=path)
 
+    @_recorded
     def mouse_move(self, x: int, y: int) -> str:
         return self._text("mouse", what="move", text=f"{x} {y}")
 
+    @_recorded
     def mouse_down(self, button: str = "left") -> str:
         return self._text("mouse", what="down", text=button)
 
+    @_recorded
     def mouse_up(self, button: str = "left") -> str:
         return self._text("mouse", what="up", text=button)
 
+    @_recorded
     def mouse_wheel(self, dy: int, dx: int = 0) -> str:
         return self._text("mouse", what="wheel", text=f"{dy} {dx}")
 
     # Waiting.
+    @_recorded
     def wait(self, target: str) -> str:
         return self._text("wait", target=target)
 
@@ -476,6 +486,7 @@ class Page:
     def wait_ms(self, milliseconds: int) -> str:
         return self._text("waitms", text=str(milliseconds))
 
+    @_recorded
     def wait_text(self, text: str, timeout: float = 30.0) -> str:
         """Wait until the page's visible text contains ``text``.
 
@@ -490,6 +501,7 @@ class Page:
         )
         return text
 
+    @_recorded
     def wait_gone(self, text: str, timeout: float = 30.0) -> str:
         """Wait until the page's visible text no longer contains ``text``."""
 
@@ -500,6 +512,7 @@ class Page:
         )
         return text
 
+    @_recorded
     def wait_count(self, selector: str, count: int, timeout: float = 30.0) -> int:
         """Wait until ``selector`` matches exactly ``count`` elements."""
 
@@ -510,6 +523,7 @@ class Page:
         )
         return count
 
+    @_recorded
     def wait_for(
         self,
         role: str | None = None,
@@ -577,6 +591,7 @@ class Page:
     def wait_state(self, target: str, state: str) -> str:
         return self._text("waitstate", target=target, text=state)
 
+    @_recorded
     def wait_download(self, path: str) -> str:
         return self._text("waitdownload", text=path)
 
@@ -598,6 +613,7 @@ class Page:
         return self._text("tabselect", target=target)
 
     # Capturing and inspecting.
+    @_recorded
     def screenshot(
         self,
         path: str | None = None,
@@ -619,9 +635,11 @@ class Page:
             shot.save(save)
         return shot
 
+    @_recorded
     def pdf(self, path: str) -> str:
         return self._text("pdf", text=path)
 
+    @_recorded
     def highlight(self, target: str) -> str:
         return self._text("highlight", target=target)
 
@@ -775,7 +793,8 @@ class Page:
         script = (
             "((spec) => Object.fromEntries(Object.entries(spec).map(([key, sel]) => {"
             "const all = sel.endsWith('[]'); if (all) sel = sel.slice(0, -2);"
-            "const at = sel.lastIndexOf('@'); const attr = at > 0 ? sel.slice(at + 1) : null;"
+            "const at = sel.lastIndexOf('@'); "
+            "const attr = at > 0 && /^[A-Za-z_][\\w-]*$/.test(sel.slice(at + 1)) ? sel.slice(at + 1) : null;"
             "if (attr) sel = sel.slice(0, at);"
             "const read = e => attr ? e.getAttribute(attr) : e.innerText.trim();"
             "return [key, all ? [...document.querySelectorAll(sel)].map(read)"
@@ -815,11 +834,13 @@ class Page:
         return self.goto("file://" + urllib.parse.quote(os.path.abspath(path)))
 
     # Frames. There is no dialog method: the browser auto-dismisses alerts.
+    @_recorded
     def frame(self, selector: str) -> str:
         """Send later actions into an iframe. Return with ``main_frame()``."""
 
         return self._text("frame", target=selector)
 
+    @_recorded
     def main_frame(self) -> str:
         return self._text("frame", target="main")
 
@@ -828,15 +849,25 @@ class Page:
         """The actions this page object ran, as a program that replays them."""
 
         body = [f"    {line}" for line in self.history] or ["    pass"]
+        page_expr = "browser.scratch()" if self.session else "browser.page()"
+        ending = (
+            [
+                '    result = {"title": page.title(), "url": page.url()}',
+                "    page.close()",
+                "    return result",
+            ]
+            if self.session
+            else ['    return {"title": page.title(), "url": page.url()}']
+        )
         return "\n".join(
             [
                 "from agent import browser",
                 "",
                 "",
                 "def Run(ctx, a):",
-                "    page = browser.page()",
+                f"    page = {page_expr}",
                 *body,
-                '    return {"title": page.title(), "url": page.url()}',
+                *ending,
                 "",
             ]
         )
@@ -871,38 +902,45 @@ class ScratchPage(Page):
     def __init__(self, session: str) -> None:
         super().__init__(session=session)
 
+    @_recorded
     def viewport(self, width: int, height: int, scale: float | None = None) -> str:
         """Set the viewport size in CSS pixels, with an optional device scale."""
 
         text = f"{int(width)} {int(height)}" + (f" {scale:g}" if scale else "")
         return self._text("viewport", text=text)
 
+    @_recorded
     def device(self, name: str) -> str:
         """Emulate a device by name, for example ``"iPhone 12"``."""
 
         return self._text("device", text=name)
 
+    @_recorded
     def geo(self, latitude: float, longitude: float) -> str:
         """Set the geolocation."""
 
         return self._text("geo", text=f"{latitude:g} {longitude:g}")
 
+    @_recorded
     def offline(self, on: bool = True) -> str:
         """Turn offline mode on (or off with ``on=False``)."""
 
         return self._text("offline", what="on" if on else "off")
 
+    @_recorded
     def media(self, scheme: str | None = None, reduced_motion: bool = False) -> str:
         """Emulate ``dark`` or ``light`` color scheme and reduced motion."""
 
         return self._text("media", what=scheme, exact=reduced_motion)
 
+    @_recorded
     def headers(self, headers: dict[str, str] | str) -> str:
         """Send extra HTTP headers, as a dict or a JSON object string."""
 
         text = headers if isinstance(headers, str) else json.dumps(headers)
         return self._text("headers", text=text)
 
+    @_recorded
     def route(self, url: str, resource_type: str | None = None) -> str:
         """Abort requests matching ``url``. Use a full URL for an exact match.
 
@@ -912,6 +950,7 @@ class ScratchPage(Page):
 
         return self._text("route", url=url, what="abort", selector=resource_type)
 
+    @_recorded
     def unroute(self, url: str | None = None) -> str:
         """Remove a route, or every route when ``url`` is omitted."""
 
@@ -923,6 +962,7 @@ class ScratchPage(Page):
         data = _decoded(self._text("cookies", what="get"))
         return data.get("cookies", []) if isinstance(data, dict) else data
 
+    @_recorded
     def set_cookie(
         self,
         name: str,
@@ -934,6 +974,7 @@ class ScratchPage(Page):
 
         return self._text("cookies", what="set", name=name, text=value, url=url, selector=domain)
 
+    @_recorded
     def clear_cookies(self) -> str:
         return self._text("cookies", what="clear")
 
@@ -948,12 +989,15 @@ class ScratchPage(Page):
                 return data["value"]
         return data
 
+    @_recorded
     def set_storage(self, key: str, value: str, kind: str = "local") -> str:
         return self._text("storage", what="set", locator=kind, name=key, text=value)
 
+    @_recorded
     def clear_storage(self, kind: str = "local") -> str:
         return self._text("storage", what="clear", locator=kind)
 
+    @_recorded
     def tab_close(self, target: str | None = None) -> str:
         """Close one tab by id or index. This is only possible on a scratch browser."""
 

@@ -250,7 +250,7 @@ def parse_glob(data: Any) -> GlobResult:
         truncated = False
     else:
         value = _object(data, "glob")
-        entries = value.get("entries", [])
+        entries = _list(value.get("entries", []))
         truncated = bool(value.get("truncated", False))
     return GlobResult(
         entries=tuple(
@@ -268,7 +268,7 @@ def parse_grep(data: Any) -> GrepResult:
         truncated = False
     else:
         value = _object(data, "grep")
-        rows = value.get("matches", [])
+        rows = _list(value.get("matches", []))
         truncated = bool(value.get("truncated", False))
     return GrepResult(
         matches=tuple(
@@ -339,7 +339,7 @@ def parse_write(data: Any) -> WriteResult:
 
 def parse_patch(data: Any) -> PatchResult:
     value = _object(data, "patch")
-    files = value.get("files", [])
+    files = _list(value.get("files", []))
     return PatchResult(
         files=tuple(str(item) for item in files),
         diff=str(value.get("diff", "")),
@@ -376,9 +376,9 @@ class ShellResult(_Result):
 
     @property
     def ok(self) -> bool:
-        """True when the command exited with 0."""
+        """True when the command exited with 0 and did not time out."""
 
-        return self.exit == 0
+        return self.exit == 0 and not self.timed_out
 
 
 def parse_shell(data: Any) -> ShellResult:
@@ -498,7 +498,8 @@ class Screenshot(_Result):
             with open(path, "wb") as handle:
                 handle.write(data)
         elif self.path and os.path.exists(self.path):
-            shutil.copyfile(self.path, path)
+            if os.path.abspath(self.path) != os.path.abspath(path):
+                shutil.copyfile(self.path, path)
         else:
             raise AgentError("not_found", f"screenshot has no bytes and {self.path!r} is not readable here")
         return path
@@ -710,7 +711,7 @@ def parse_snapshot(text: str) -> tuple[Node, ...]:
     return tuple(nodes)
 
 
-def _items(text: Any, key: str) -> list[Any]:
+def _items(text: Any, key: str) -> list[Any] | None:
     """The list under ``key`` of a JSON reply, or [] when the reply is not that."""
 
     import json
@@ -718,7 +719,7 @@ def _items(text: Any, key: str) -> list[Any]:
     try:
         data = json.loads(text) if isinstance(text, str) else text
     except ValueError:
-        return []
+        return None
     if isinstance(data, dict) and isinstance(data.get(key), list):
         return data[key]
     return data if isinstance(data, list) else []
@@ -726,6 +727,8 @@ def _items(text: Any, key: str) -> list[Any]:
 
 def parse_console(text: Any) -> tuple[ConsoleMessage, ...]:
     rows = _items(text, "messages")
+    if rows is None:
+        return (ConsoleMessage("log", text.strip()),) if str(text).strip() else ()
     if not rows and isinstance(text, str) and text.strip() and not text.lstrip().startswith(("{", "[")):
         return (ConsoleMessage("log", text.strip()),)
     return tuple(
@@ -737,6 +740,8 @@ def parse_console(text: Any) -> tuple[ConsoleMessage, ...]:
 
 def parse_page_errors(text: Any) -> tuple[PageError, ...]:
     rows = _items(text, "errors")
+    if rows is None:
+        return (PageError(str(text).strip()),) if str(text).strip() else ()
     if not rows and isinstance(text, str) and text.strip() and not text.lstrip().startswith(("{", "[")):
         return (PageError(text.strip()),)
     return tuple(
@@ -760,7 +765,7 @@ def parse_requests(text: Any) -> tuple[Request, ...]:
             type=str(row.get("resourceType", "")),
             mime=str(row.get("mimeType", "")),
         )
-        for row in _items(text, "requests")
+        for row in (_items(text, "requests") or [])
         if isinstance(row, dict)
     )
 
@@ -773,7 +778,7 @@ def parse_tabs(text: Any) -> tuple[Tab, ...]:
             title=str(row.get("title", "")),
             active=bool(row.get("active", False)),
         )
-        for row in _items(text, "tabs")
+        for row in (_items(text, "tabs") or [])
         if isinstance(row, dict)
     )
 
@@ -792,4 +797,6 @@ def parse_diff(text: Any) -> Diff:
             removals=int(data.get("removals", 0)),
             text=str(data.get("diff", "")),
         )
-    return Diff(changed=bool(str(text).strip()), text=str(text))
+    raw = str(text)
+    unchanged = raw.strip().lower() in {"no changes", "no diff", "unchanged", "(no changes)"}
+    return Diff(changed=bool(raw.strip()) and not unchanged, text=raw)
