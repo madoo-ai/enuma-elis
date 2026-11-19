@@ -5,6 +5,8 @@ from __future__ import annotations
 import threading
 import time
 import unittest
+from concurrent.futures import Future
+from unittest import mock
 
 from agent import AgentError, fs, jobs
 from fake_host import FakeHost
@@ -40,6 +42,39 @@ class JobsTest(unittest.TestCase):
                 pending = [jobs.start(host.client.call, "test.echo", {"index": index}) for index in range(3)]
                 self.assertTrue(jobs.wait_all())
                 self.assertEqual([job.result()["index"] for job in pending], [0, 1, 2])
+
+    def test_timeout_is_not_cleared_by_a_later_success(self) -> None:
+        # Force the failing job to be visited first. A later success must not
+        # turn the overall result back to True.
+        timed_out = Future()
+        timed_out.set_exception(TimeoutError())
+        succeeded = Future()
+        succeeded.set_result("ok")
+        pending = [jobs.Job(timed_out, "slow"), jobs.Job(succeeded, "fast")]
+        with mock.patch.object(jobs, "_JOBS", pending):
+            self.assertFalse(jobs.wait_all())
+        with mock.patch.object(jobs, "_JOBS", list(reversed(pending))):
+            self.assertFalse(jobs.wait_all())
+
+    def test_result_timeout_is_a_timeout(self) -> None:
+        pending = Future()
+        job = jobs.Job(pending, "slow")
+        with self.assertRaises(TimeoutError):
+            job.result(0.01)
+
+    def test_wait_all_reports_a_real_timeout(self) -> None:
+        with FakeHost() as host:
+            assert host.client is not None
+            with host.client:
+                jobs.start(host.client.call, "test.sleep", {"seconds": 0.2})
+                self.assertFalse(jobs.wait_all(timeout=0.01))
+                self.assertTrue(jobs.wait_all())
+
+    def test_agent_error_counts_as_finished(self) -> None:
+        failed = Future()
+        failed.set_exception(AgentError("tool_failed", "boom"))
+        with mock.patch.object(jobs, "_JOBS", [jobs.Job(failed, "failed")]):
+            self.assertTrue(jobs.wait_all())
 
     def test_cancel_a_queued_job(self) -> None:
         release = threading.Event()

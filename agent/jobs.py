@@ -45,6 +45,10 @@ class Job(Generic[T]):
             return self._future.result(timeout)
         except AgentError:
             raise
+        except TimeoutError:
+            # This is a wait timeout, not a tool failure. wait_all distinguishes
+            # it from a finished job with an error.
+            raise
         except FutureCancelled:
             raise AgentError("canceled", "job canceled before it started")
         except Exception as error:  # defensive: worker failures are tool failures
@@ -109,6 +113,8 @@ def wait_all(timeout: float | None = None) -> bool:
 
     Returns ``True`` when all jobs finished before the timeout. A ``None``
     timeout waits for every job. Returns ``False`` when the timeout expires.
+    A later success cannot clear an earlier timeout: the result is order
+    independent, and an ``AgentError`` counts as a finished job.
     """
 
     with _JOBS_LOCK:
@@ -121,13 +127,14 @@ def wait_all(timeout: float | None = None) -> bool:
         remaining = None if deadline is None else max(0.0, deadline - time.monotonic())
         try:
             job.result(remaining)
-            done = True
         except AgentError:
-            done = True
+            # A tool error is a finished job, not a wait timeout.
+            pass
         except TimeoutError:
             done = False
         except BaseException:
-            done = True
+            # Any other raised value is also a finished job.
+            pass
     return done
 
 
