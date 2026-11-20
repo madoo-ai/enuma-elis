@@ -23,6 +23,7 @@ import types
 from typing import Any
 
 MODULES = ("fs", "mutate", "shell", "web", "state", "agents", "browser", "jobs")
+PROGRAM_PATH: str | None = None
 
 
 class _AliasFinder(importlib.abc.MetaPathFinder):
@@ -94,8 +95,10 @@ def _defines_run(tree: ast.Module) -> bool:
 def run_program(path: str, client: Any) -> Any:
     """Execute the program at ``path`` and return what its ``Run`` returns."""
 
+    global PROGRAM_PATH
     install_aliases()
     path = os.path.abspath(path)
+    PROGRAM_PATH = path
     with open(path, encoding="utf-8") as handle:
         source = handle.read()
     linecache.cache[path] = (len(source), None, source.splitlines(True), path)

@@ -268,12 +268,39 @@ def _trace(error: BaseException) -> str:
     program, so they are skipped. The line text comes from the program source.
     """
 
-    frames = [
-        frame
-        for frame in traceback.extract_tb(error.__traceback__)
-        if not os.path.abspath(frame.filename).startswith(_PACKAGE_DIR)
-        and not frame.filename.endswith("zz_main.py")
-    ][-6:]
+    from ._program import PROGRAM_PATH
+
+    if isinstance(error, SyntaxError) and error.filename:
+        path = os.path.abspath(error.filename)
+        line = (error.text or "").strip()
+        where = f"  {os.path.basename(path)}:{error.lineno} in <module>"
+        return f"{where}: {line}" if line else where
+
+    program = os.path.abspath(PROGRAM_PATH) if PROGRAM_PATH else None
+    if program is None:
+        # Outside the loader there is no program boundary; keep the old
+        # best-effort behavior for tests and direct SDK callers.
+        frames = [
+            frame
+            for frame in traceback.extract_tb(error.__traceback__)
+            if not os.path.abspath(frame.filename).startswith(_PACKAGE_DIR)
+            and not frame.filename.endswith("zz_main.py")
+        ][-6:]
+    else:
+        frames = [
+            frame
+            for frame in traceback.extract_tb(error.__traceback__)
+            if os.path.abspath(frame.filename) == program
+        ]
+        if not frames:
+            # The exception came from another caller; don't lose its trace.
+            frames = [
+                frame
+                for frame in traceback.extract_tb(error.__traceback__)
+                if not os.path.abspath(frame.filename).startswith(_PACKAGE_DIR)
+                and not frame.filename.endswith("zz_main.py")
+            ]
+        frames = frames[-6:]
     lines = []
     for frame in frames:
         name = os.path.basename(frame.filename)

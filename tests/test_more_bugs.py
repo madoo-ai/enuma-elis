@@ -142,3 +142,42 @@ class ScratchStorageAuditTest(unittest.TestCase):
                 with self.assertRaises(agent.AgentError):
                     page.clear_storage(kind="localstorage")
         self.assertEqual(host.calls, [])
+
+
+class TraceAuditTest(unittest.TestCase):
+    def test_tool_error_trace_is_program_only(self) -> None:
+        import os
+        import tempfile
+
+        from agent._program import run_program
+
+        source = "def Run(ctx, a):\n    return a.call('test.fail', {})\n"
+        with FakeHost() as host:
+            assert host.client is not None
+            with host.client, tempfile.TemporaryDirectory() as directory:
+                path = os.path.join(directory, "program.py")
+                with open(path, "w") as handle:
+                    handle.write(source)
+                try:
+                    run_program(path, host.client)
+                except agent.AgentError as error:
+                    body = agent.to_error(error)
+        self.assertIn("program.py:2 in Run", body["trace"])
+        self.assertNotIn("_base.py", body["trace"])
+
+    def test_syntax_error_trace_points_at_the_program(self) -> None:
+        import os
+        import tempfile
+
+        from agent._program import run_program
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = os.path.join(directory, "program.py")
+            with open(path, "w") as handle:
+                handle.write("x = 1\n    y = 2\n")
+            with self.assertRaises(SyntaxError) as caught:
+                run_program(path, None)
+        body = agent.to_error(caught.exception)
+        self.assertIn("program.py:2 in <module>", body["trace"])
+        self.assertIn("y = 2", body["trace"])
+        self.assertNotIn("ast.py", body["trace"])
