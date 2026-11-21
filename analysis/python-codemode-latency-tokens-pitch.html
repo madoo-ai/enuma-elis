@@ -283,8 +283,70 @@
       </p>
     </section>
 
+    <section id="why-python">
+      <div class="kicker">03 — Why Python</div>
+      <h2>Python is the shortest path from intent to result.</h2>
+      <div class="expect">
+        <div><b>No new DSL</b><span>The model already knows Python.</span></div>
+        <div><b>Readable</b><span>Programs are easy to inspect and debug.</span></div>
+        <div><b>Composable</b><span>Loops, conditions, and state fit naturally.</span></div>
+        <div><b>Familiar failures</b><span>One stack trace says what broke.</span></div>
+      </div>
+    </section>
+
+    <section id="why-code-mode">
+      <div class="kicker">04 — Why code mode</div>
+      <h2>One program replaces a burst of tool calls.</h2>
+      <div class="expect">
+        <div><b>Fewer turns</b><span>Several tool calls become one model turn.</span></div>
+        <div><b>Less context</b><span>The program returns one short result.</span></div>
+        <div><b>Less waiting</b><span>It can wait once instead of polling repeatedly.</span></div>
+        <div><b>Clearer evidence</b><span>One trace reports the whole check.</span></div>
+      </div>
+    </section>
+
+    <section id="surface">
+      <div class="kicker">05 — The tool surface we target</div>
+      <h2>The same tools the model already uses, wrapped in Python.</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Module</th>
+            <th>What it covers</th>
+            <th>Why it matters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>fs</code></td>
+            <td>Read files, list paths, search text.</td>
+            <td>Most routine turns start here.</td>
+          </tr>
+          <tr>
+            <td><code>shell</code></td>
+            <td>Run commands, tests, and builds.</td>
+            <td>This is where latency and tokens pile up.</td>
+          </tr>
+          <tr>
+            <td><code>browser</code></td>
+            <td>Inspect pages, click, fill, and wait.</td>
+            <td>UI checks are the slowest part of the loop.</td>
+          </tr>
+          <tr>
+            <td><code>mutate</code></td>
+            <td>Apply edits and patches.</td>
+            <td>Keeps changes typed and auditable.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p class="small">
+        We are not targeting arbitrary Python execution.
+        We target the existing tool surface the agent already uses.
+      </p>
+    </section>
+
     <section id="examples">
-      <div class="kicker">03 — What changes in practice</div>
+      <div class="kicker">06 — What changes in practice</div>
       <h2>Four examples show the difference.</h2>
       <table>
         <thead>
@@ -395,7 +457,7 @@ except AgentError as error:
     </section>
 
     <section id="run">
-      <div class="kicker">04 — What the latest run shows</div>
+      <div class="kicker">07 — What the latest run shows</div>
       <h2>The latest run already moved in that direction.</h2>
 
       <div class="stats">
@@ -427,7 +489,7 @@ except AgentError as error:
     </section>
 
     <section id="evidence">
-      <div class="kicker">05 — How the numbers back it up</div>
+      <div class="kicker">08 — How the numbers back it up</div>
       <h2>The run is small, but the direction is clear.</h2>
       <p>
         One program replaced about four native tool calls on average.
@@ -441,7 +503,7 @@ except AgentError as error:
     </section>
 
     <section id="caveat">
-      <div class="kicker">06 — What we’re not claiming yet</div>
+      <div class="kicker">09 — What we’re not claiming yet</div>
       <h2>This is an experiment, not a benchmark.</h2>
       <div class="caveat">
         We have one clean run, not a controlled native-tools comparison.
@@ -454,7 +516,7 @@ except AgentError as error:
     </section>
 
     <section id="ask" class="ending">
-      <div class="kicker">07 — The ask</div>
+      <div class="kicker">10 — The ask</div>
       <h2>Give us one controlled run.</h2>
       <p>
         Run the same goal once with native tools.
