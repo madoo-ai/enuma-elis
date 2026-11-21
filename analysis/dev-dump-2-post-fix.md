@@ -1,5 +1,10 @@
 # Post-fix code-mode dump
 
+> Follow-up: `dev-dump-2-optimization.md` corrects the session time budget,
+> supersedes the broad "application timing" interpretation of the browser
+> failures, and documents the 25-second `wait_load()` stalls and silent
+> bare-function `evaluate()` no-ops.
+
 Source: `manus-dei/.dumps/e9ccef73-dump-20261121T021623Z`.
 Build: `0.4.28-alcides`. Task: Go/React todo list in the boilerplate.
 
