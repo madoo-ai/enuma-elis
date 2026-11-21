@@ -105,6 +105,31 @@
       color: var(--muted);
     }
 
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 26px;
+      font-size: 15px;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+    }
+
+    th {
+      color: var(--accent-ink);
+      font-weight: 750;
+      font-size: 13px;
+    }
+
+    td:first-child {
+      width: 24%;
+    }
+
     .stats {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -223,8 +248,44 @@
       </p>
     </section>
 
+    <section id="examples">
+      <div class="kicker">03 — What changes in practice</div>
+      <h2>Four examples show the difference.</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Native tools</th>
+            <th>Python code mode</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Read three files</td>
+            <td>Three separate calls, three separate turns.</td>
+            <td>One program reads all three and returns one summary.</td>
+          </tr>
+          <tr>
+            <td>Wait for a dialog</td>
+            <td>The model polls the page again and again.</td>
+            <td>One wait runs until the page is ready.</td>
+          </tr>
+          <tr>
+            <td>Check a test result</td>
+            <td>The model reads the full output and decides.</td>
+            <td>The program parses the result and returns pass or fail.</td>
+          </tr>
+          <tr>
+            <td>Recover from an error</td>
+            <td>The model sees one error and starts over.</td>
+            <td>The program catches the error and returns one trace.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
     <section id="run">
-      <div class="kicker">03 — What the latest run shows</div>
+      <div class="kicker">04 — What the latest run shows</div>
       <h2>The latest run already moved in that direction.</h2>
 
       <div class="stats">
@@ -256,7 +317,7 @@
     </section>
 
     <section id="evidence">
-      <div class="kicker">04 — How the numbers back it up</div>
+      <div class="kicker">05 — How the numbers back it up</div>
       <h2>The run is small, but the direction is clear.</h2>
       <p>
         One program replaced about four native tool calls on average.
@@ -270,7 +331,7 @@
     </section>
 
     <section id="caveat">
-      <div class="kicker">05 — What we’re not claiming yet</div>
+      <div class="kicker">06 — What we’re not claiming yet</div>
       <h2>This is an experiment, not a benchmark.</h2>
       <div class="caveat">
         We have one clean run, not a controlled native-tools comparison.
@@ -283,7 +344,7 @@
     </section>
 
     <section id="ask" class="ending">
-      <div class="kicker">06 — The ask</div>
+      <div class="kicker">07 — The ask</div>
       <h2>Give us one controlled run.</h2>
       <p>
         Run the same goal once with native tools.
