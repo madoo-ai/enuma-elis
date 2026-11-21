@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python code mode vs native tools</title>
+  <title>Python code mode: fewer turns, fewer tokens</title>
   <style>
     :root {
       --paper: #f7f8f7;
@@ -13,7 +13,6 @@
       --accent: #176b5a;
       --accent-ink: #0e3f36;
       --warn: #a64316;
-      --code-bg: #eef1ef;
     }
 
     * { box-sizing: border-box; }
@@ -132,71 +131,25 @@
       color: var(--muted);
     }
 
-    .bars {
-      margin-top: 30px;
-      display: grid;
-      gap: 18px;
-    }
-
-    .bar-row {
-      display: grid;
-      grid-template-columns: 190px 1fr;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .bar-label {
-      font-size: 14px;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-
-    .bar-track {
-      position: relative;
-      height: 16px;
-      background: #e3e6e4;
-      overflow: hidden;
-    }
-
-    .bar-fill {
-      position: absolute;
-      inset: 0 auto 0 0;
-      background: var(--accent);
-    }
-
-    .bar-value {
-      margin-left: 12px;
-      font-size: 14px;
-      font-weight: 650;
-    }
-
-    .expect {
-      margin-top: 30px;
+    .ratio {
+      margin-top: 34px;
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 20px 32px;
+      gap: 24px 40px;
     }
 
-    .expect div {
-      padding-left: 14px;
-      border-left: 3px solid var(--accent);
-      font-size: 15px;
-    }
-
-    .expect b {
-      display: block;
-      margin-bottom: 4px;
-      color: var(--accent-ink);
-      font-size: 15px;
-    }
-
-    .callout {
-      margin-top: 30px;
+    .ratio div {
       padding: 18px 20px;
-      border-left: 4px solid var(--accent);
       background: #eef3f1;
+      border-left: 4px solid var(--accent);
       font-size: 16px;
-      max-width: 78ch;
+    }
+
+    .ratio b {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent-ink);
+      font-size: 18px;
     }
 
     .caveat {
@@ -206,14 +159,6 @@
       background: #f5eee9;
       font-size: 15px;
       max-width: 78ch;
-    }
-
-    code {
-      padding: 2px 6px;
-      border-radius: 4px;
-      background: var(--code-bg);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 0.92em;
     }
 
     .ending { border-bottom: 0; padding-bottom: 24px; }
@@ -229,13 +174,9 @@
 
     @media (max-width: 760px) {
       .stats,
-      .expect,
-      .bar-row {
+      .ratio {
         grid-template-columns: 1fr;
       }
-
-      .bar-row { gap: 8px; }
-      .bar-value { margin-left: 0; }
       section { padding: 42px 0 32px; }
     }
 
@@ -254,116 +195,106 @@
   <main>
     <header>
       <strong>Python code mode</strong>
-      <span>Compared with native tools</span>
+      <span>An experiment in fewer turns and fewer tokens</span>
     </header>
 
     <section id="title">
-      <div class="kicker">01 — Pitch</div>
-      <h1>Python code mode vs native tools</h1>
+      <div class="kicker">01 — What we’re doing</div>
+      <h1>Python code mode: fewer turns, fewer tokens</h1>
       <p class="lead">
-        What we expect to change, what the latest rerun already shows, and what we still need to measure.
+        This repo is an experiment in replacing a burst of native tool calls with one Python program.
+        The model writes a program, the program does the routine work, and the model gets one result back.
+      </p>
+      <p>
+        That should cut model turns, cut context, and save time.
+        The latest run already shows the direction.
       </p>
     </section>
 
-    <section id="claim">
-      <div class="kicker">02 — The claim</div>
-      <h2>Native tools spend a model turn on every small step.</h2>
+    <section id="why">
+      <div class="kicker">02 — Why it should help</div>
+      <h2>Native tools make the model ask for every piece separately.</h2>
       <p>
-        Code mode lets the model put several reads, one wait, and one check into a single program.
-        The program then returns only the result the model needs.
+        One program can read several files, wait once, compute a check, and return only the value the model needs.
+        Native tools would turn those same steps into separate model turns.
       </p>
       <p>
-        That should mean fewer turns, fewer child calls, and less context.
+        Fewer turns mean less context, fewer round trips, and less waiting.
       </p>
     </section>
 
-    <section id="rerun">
-      <div class="kicker">03 — The latest rerun</div>
-      <h2>The direction is already visible.</h2>
-      <p>
-        The latest run used the fixed fork and finished in two QA rounds.
-        It is not a native-tools comparison, and it used a different template from the earlier run.
-        Treat it as direction, not as a benchmark.
-      </p>
+    <section id="run">
+      <div class="kicker">03 — What the latest run shows</div>
+      <h2>The latest run already moved in that direction.</h2>
 
       <div class="stats">
-        <div class="stat"><b>226</b><span>Python programs, down from 572</span></div>
-        <div class="stat"><b>1,011</b><span>Child tool calls, down from 2,101</span></div>
-        <div class="stat"><b>36.5 min</b><span>Active time, down from 71.2 min</span></div>
-        <div class="stat"><b>479k</b><span>Uncached input tokens, down from 3.6M</span></div>
-        <div class="stat"><b>7</b><span>Truncated outputs, down from 93</span></div>
-        <div class="stat"><b>0</b><span>25-second <code>wait_load</code> stalls, down from 25</span></div>
+        <div class="stat"><b>226</b><span>Python programs</span></div>
+        <div class="stat"><b>1,011</b><span>Child tool calls</span></div>
+        <div class="stat"><b>36.5 min</b><span>Active time</span></div>
+        <div class="stat"><b>479k</b><span>Uncached input tokens</span></div>
+        <div class="stat"><b>7</b><span>Truncated outputs</span></div>
+        <div class="stat"><b>0</b><span>25-second browser stalls</span></div>
       </div>
 
-      <div class="bars">
-        <div class="bar-row">
-          <div class="bar-label">Programs</div>
-          <div class="bar-track"><div class="bar-fill" style="width: 61%"></div></div>
-          <div class="bar-value">61% fewer</div>
+      <div class="ratio">
+        <div>
+          <b>About 4.5× fewer model turns</b>
+          <span>
+            226 programs did the work of 1,011 native tool calls.
+            An equivalent native-tools run would need roughly 4.5× more model turns.
+          </span>
         </div>
-        <div class="bar-row">
-          <div class="bar-label">Child calls</div>
-          <div class="bar-track"><div class="bar-fill" style="width: 52%"></div></div>
-          <div class="bar-value">52% fewer</div>
+        <div>
+          <b>Several times less token cost</b>
+          <span>
+            Each extra turn carries context again.
+            Code mode returned short results instead of full tool output, which kept uncached input at 479k tokens.
+            An equivalent native-tools run would carry more context and more tokens.
+          </span>
         </div>
-        <div class="bar-row">
-          <div class="bar-label">Active time</div>
-          <div class="bar-track"><div class="bar-fill" style="width: 49%"></div></div>
-          <div class="bar-value">49% less</div>
-        </div>
-        <div class="bar-row">
-          <div class="bar-label">Uncached input</div>
-          <div class="bar-track"><div class="bar-fill" style="width: 87%"></div></div>
-          <div class="bar-value">87% less</div>
-        </div>
-      </div>
-
-      <div class="callout">
-        Print truncation dropped from 93 programs to 7.
-        The <code>wait_load</code> stall did not appear in this run.
       </div>
     </section>
 
-    <section id="expect">
-      <div class="kicker">04 — What we expect against native tools</div>
-      <h2>The same work should cost fewer turns and less context.</h2>
-      <div class="expect">
-        <div><b>Fewer model turns</b><span>One program can replace several tool calls.</span></div>
-        <div><b>Fewer child calls</b><span>Reads and waits can batch instead of repeating.</span></div>
-        <div><b>Less uncached input</b><span>A program can return an excerpt, not a whole file.</span></div>
-        <div><b>Fewer repeated reads</b><span>State can stay inside one program when it belongs together.</span></div>
-        <div><b>Shorter failure paths</b><span>One program reports the line and the result together.</span></div>
-        <div><b>Clearer evidence</b><span>The model can compute a check and return the value it proved.</span></div>
-      </div>
+    <section id="evidence">
+      <div class="kicker">04 — How the numbers back it up</div>
+      <h2>The run is small, but the direction is clear.</h2>
+      <p>
+        One program replaced about four native tool calls on average.
+        Active time stayed under 37 minutes.
+        Uncached input stayed under 500k tokens.
+        Only seven outputs were truncated, and the old 25-second browser stall did not appear.
+      </p>
+      <p>
+        An equivalent native-tools run would incur more turns and more tokens for the same work.
+      </p>
     </section>
 
     <section id="caveat">
-      <div class="kicker">05 — What still needs to happen</div>
-      <h2>One deployment step is still missing.</h2>
+      <div class="kicker">05 — What we’re not claiming yet</div>
+      <h2>This is an experiment, not a benchmark.</h2>
       <div class="caveat">
-        The latest dump still shows <code>wait_url(timeout=...)</code> and bare-function
-        <code>evaluate()</code> failing, which means the browser SDK in the runtime has not been refreshed.
-        The fork-side output fixes are active, but the browser fixes are not yet fully in play.
+        We have one clean run, not a controlled native-tools comparison.
+        The numbers show what a fixed code-mode run costs today.
+        They do not yet give the exact multiplier for tokens against native tools.
       </div>
       <p>
-        Issue #10 also remains open: generated build output can still reach the QA prompt.
+        The next step is one controlled run against native tools on the same goal.
       </p>
     </section>
 
     <section id="ask" class="ending">
       <div class="kicker">06 — The ask</div>
-      <h2>Refresh the runtime, then run one controlled comparison.</h2>
+      <h2>Give us one controlled run.</h2>
       <p>
-        Give us one run against native tools on the same goal and the same model.
-        If code mode still wins on turns, tokens, and time, we keep going.
+        Run the same goal once with native tools.
+        If code mode still saves turns and tokens, we keep going.
         If it doesn’t, we stop and say so.
       </p>
     </section>
 
     <footer>
-      Latest rerun: 226 programs, 1,011 child calls, 36.5 active minutes, 479k uncached input tokens.
-      Previous run: 572 programs, 2,101 child calls, 71.2 active minutes, 3.6M uncached input tokens.
-      The two runs used different templates, so treat the comparison as directional.
+      Latest run: 226 programs, 1,011 child calls, 36.5 active minutes, 479k uncached input tokens.
+      One program replaced about four native tool calls on average.
     </footer>
   </main>
 </body>
