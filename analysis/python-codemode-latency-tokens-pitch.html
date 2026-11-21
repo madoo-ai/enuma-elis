@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Python code mode: cut latency, cut tokens</title>
+  <style>
+    :root {
+      --paper: #f7f8f7;
+      --ink: #101314;
+      --muted: #556066;
+      --line: #d9dedb;
+      --accent: #176b5a;
+      --accent-ink: #0e3f36;
+      --warn: #a64316;
+      --bar: #dfe3e1;
+      --bar-fill: #176b5a;
+      --code-bg: #eef1ef;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 28px 96px;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 18px 0 14px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(247, 248, 247, 0.96);
+      backdrop-filter: blur(8px);
+    }
+
+    header strong {
+      font-size: 15px;
+      letter-spacing: -0.01em;
+    }
+
+    header span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    section {
+      scroll-snap-align: start;
+      padding: 56px 0 42px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .kicker {
+      display: flex;
+      gap: 12px;
+      align-items: baseline;
+      margin-bottom: 10px;
+      color: var(--accent-ink);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .kicker::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    h1 {
+      margin: 0 0 18px;
+      font-size: clamp(38px, 6vw, 64px);
+      line-height: 1.03;
+      letter-spacing: -0.035em;
+      font-weight: 850;
+    }
+
+    h2 {
+      margin: 0 0 14px;
+      font-size: clamp(26px, 3.4vw, 34px);
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      font-weight: 780;
+    }
+
+    h3 {
+      margin: 26px 0 8px;
+      font-size: 15px;
+      font-weight: 750;
+      color: var(--accent-ink);
+    }
+
+    p {
+      margin: 0 0 16px;
+      max-width: 78ch;
+      font-size: 16px;
+      color: var(--ink);
+    }
+
+    .lead {
+      max-width: 88ch;
+      font-size: clamp(17px, 2vw, 20px);
+      line-height: 1.5;
+    }
+
+    .small {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 28px 44px;
+      margin-top: 32px;
+    }
+
+    .stat {
+      padding-left: 16px;
+      border-left: 3px solid var(--accent);
+    }
+
+    .stat b {
+      display: block;
+      font-size: clamp(30px, 4vw, 44px);
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .bars {
+      margin-top: 30px;
+      display: grid;
+      gap: 16px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .bar-label {
+      font-size: 14px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .bar-track {
+      position: relative;
+      height: 16px;
+      background: var(--bar);
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: var(--bar-fill);
+    }
+
+    .bar-value {
+      margin-left: 12px;
+      font-size: 14px;
+      color: var(--ink);
+      font-weight: 650;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+      gap: 40px;
+      align-items: start;
+    }
+
+    .problem-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 14px;
+    }
+
+    .problem-list li {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 12px;
+      font-size: 15px;
+      color: var(--ink);
+    }
+
+    .problem-list li::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      margin-top: 7px;
+      background: var(--warn);
+    }
+
+    .fix-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 26px;
+    }
+
+    .fix {
+      display: grid;
+      grid-template-columns: 92px 1fr;
+      gap: 16px;
+      align-items: baseline;
+      font-size: 15px;
+    }
+
+    .fix b {
+      font-weight: 760;
+      color: var(--accent-ink);
+    }
+
+    code {
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--code-bg);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.92em;
+    }
+
+    .callout {
+      margin-top: 30px;
+      padding: 18px 20px;
+      border-left: 4px solid var(--accent);
+      background: #eef3f1;
+      font-size: 16px;
+      max-width: 78ch;
+    }
+
+    .issue {
+      margin-top: 30px;
+      font-size: 15px;
+    }
+
+    .issue a {
+      color: var(--accent);
+      font-weight: 650;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 3px;
+    }
+
+    .next-steps {
+      margin-top: 26px;
+      display: grid;
+      gap: 12px;
+      max-width: 78ch;
+      font-size: 15px;
+    }
+
+    .next-steps div {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 12px;
+    }
+
+    .next-steps b {
+      color: var(--accent-ink);
+      font-weight: 750;
+    }
+
+    .ending {
+      border-bottom: 0;
+      padding-bottom: 20px;
+    }
+
+    .ending p {
+      font-size: 18px;
+      max-width: 70ch;
+    }
+
+    footer {
+      margin-top: 48px;
+      color: var(--muted);
+      font-size: 13px;
+      border-top: 1px solid var(--line);
+      padding-top: 18px;
+      max-width: 78ch;
+    }
+
+    footer a {
+      color: var(--accent);
+    }
+
+    @media (max-width: 760px) {
+      .split,
+      .stat-grid,
+      .bar-row,
+      .fix {
+        grid-template-columns: 1fr;
+      }
+
+      .fix {
+        gap: 6px;
+      }
+
+      .bar-row {
+        gap: 8px;
+      }
+
+      .bar-value {
+        margin-left: 0;
+      }
+
+      section {
+        padding: 42px 0 32px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+      }
+
+      header {
+        position: static;
+      }
+
+      section {
+        break-inside: avoid;
+        page-break-after: always;
+        border-bottom: 0;
+      }
+
+      .issue a,
+      footer a {
+        color: #000;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <strong>Python code mode</strong>
+      <span>Latency and token cost, measured on one real goal</span>
+    </header>
+
+    <section id="title">
+      <div class="kicker">01 — Title</div>
+      <h1>Python code mode: cut latency, cut tokens</h1>
+      <p class="lead">
+        One real goal ran for 71.9 minutes and produced 572 Python programs.
+        The work finished. The bill was too high.
+      </p>
+      <p class="lead">
+        Four browser calls and one QA prompt caused most of the extra time and cost.
+        We fixed the browser calls. The QA prompt is now issue #10.
+      </p>
+    </section>
+
+    <section id="run">
+      <div class="kicker">02 — What the run looked like</div>
+      <h2>The mode already works. The cost around it does not.</h2>
+      <p>
+        Python code mode completed 94.2% of its programs on the first attempt.
+        The goal still needed four QA rounds, but the programs themselves ran.
+        What stood out wasn’t correctness. It was where the minutes and tokens went.
+      </p>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <b>572</b>
+          <span>Python programs in one goal</span>
+        </div>
+        <div class="stat">
+          <b>2,101</b>
+          <span>Child tool calls</span>
+        </div>
+        <div class="stat">
+          <b>71.9 min</b>
+          <span>Total goal span</span>
+        </div>
+        <div class="stat">
+          <b>3.6M</b>
+          <span>Uncached input tokens</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="time">
+      <div class="kicker">03 — Where the time went</div>
+      <h2>One browser call took 629 seconds and still reported success.</h2>
+      <p>
+        The model waited 45.9 minutes. Tools took 25.3 minutes.
+        Inside that tool time, one browser call, <code>wait_load</code>, cost 629 seconds
+        across 25 calls. Every one of those calls looked successful to the harness.
+      </p>
+
+      <div class="bars">
+        <div class="bar-row">
+          <div class="bar-label">Model time</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 64%"></div></div>
+          <div class="bar-value">45.9 min</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Tool time</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 36%"></div></div>
+          <div class="bar-value">25.3 min</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label"><code>wait_load</code> alone</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 42%"></div></div>
+          <div class="bar-value">629 s</div>
+        </div>
+      </div>
+
+      <div class="callout">
+        The fix was small: <code>wait_load</code> now checks <code>document.readyState</code>
+        and returns when the document is ready. No 25-second stall, no false success.
+      </div>
+    </section>
+
+    <section id="bugs">
+      <div class="kicker">04 — What broke</div>
+      <h2>Four browser calls caused most of the visible waste.</h2>
+      <div class="split">
+        <div>
+          <p>
+            These weren’t exotic failures. They were ordinary browser calls that either
+            stalled, matched nothing, or silently did nothing.
+          </p>
+          <ul class="problem-list">
+            <li><code>wait_load</code> stalled 25 seconds per call.</li>
+            <li><code>wait_for(role="dialog")</code> couldn’t see structural nodes.</li>
+            <li><code>wait_url</code> timed out even when the URL already matched.</li>
+            <li><code>evaluate</code> returned an empty object for bare functions.</li>
+          </ul>
+        </div>
+        <div>
+          <p class="small">
+            Nine polling programs produced 671 browser calls. All nine failed.
+            That’s close to one third of every child call in the run.
+          </p>
+          <p class="small">
+            Six <code>evaluate</code> calls didn’t execute at all.
+            The browser returned an empty object and the program still completed.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="tokens">
+      <div class="kicker">05 — Where the tokens went</div>
+      <h2>Most uncached input came from one QA prompt, not from code.</h2>
+      <p>
+        Four QA requests carried 2.59 million uncached input tokens.
+        That’s 72.1% of the entire run’s uncached input.
+        The cause was generated build output and database files in the diff sent to QA.
+      </p>
+
+      <div class="bars">
+        <div class="bar-row">
+          <div class="bar-label">Generated QA diff</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 72%"></div></div>
+          <div class="bar-value">2.59M tokens</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Everything else</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 28%"></div></div>
+          <div class="bar-value">1.00M tokens</div>
+        </div>
+      </div>
+
+      <div class="callout">
+        One line in the QA prompt was 230,341 characters long.
+        That line came from a minified bundle, not from source code.
+      </div>
+    </section>
+
+    <section id="print">
+      <div class="kicker">06 — The hidden output problem</div>
+      <h2>Print output hid its own truncation.</h2>
+      <p>
+        Ninety-three of the 572 programs had output cut short.
+        The metadata still said <code>truncated: false</code>.
+        The model kept reading the same files again to recover the missing pieces.
+      </p>
+      <div class="stat-grid">
+        <div class="stat">
+          <b>93</b>
+          <span>Programs with truncated print output</span>
+        </div>
+        <div class="stat">
+          <b>16%</b>
+          <span>Share of all programs affected</span>
+        </div>
+      </div>
+      <p>
+        The renderer kept the last 60 lines and never reported what was missing.
+        We changed that. Success output now keeps the head and tail, and failure output
+        keeps the tail. Every program reports the omitted line and character counts.
+      </p>
+    </section>
+
+    <section id="fixes">
+      <div class="kicker">07 — What we changed</div>
+      <h2>The fixes are already on <code>main</code>.</h2>
+      <p>
+        These are not proposals. They’re merged, tested, and built into the current binary.
+      </p>
+
+      <div class="fix-list">
+        <div class="fix"><b>Waits</b><span><code>wait_load</code>, <code>wait_url</code>, and <code>wait_for</code> now check the real page state instead of waiting on events that never fire.</span></div>
+        <div class="fix"><b>Function calls</b><span><code>evaluate</code> invokes bare functions, so probes actually run.</span></div>
+        <div class="fix"><b>Output</b><span>Print output keeps head and tail and reports omitted counts.</span></div>
+        <div class="fix"><b>Reads</b><span>The catalog teaches the model to batch independent reads and return keyed excerpts.</span></div>
+        <div class="fix"><b>Errors</b><span><code>fs.grep</code> reports a missing path instead of searching the parent directory.</span></div>
+      </div>
+    </section>
+
+    <section id="impact">
+      <div class="kicker">08 — What that buys</div>
+      <h2>One run shows a clear upper bound for the savings.</h2>
+      <p>
+        We haven’t rerun the full goal yet, so treat these as measured upper bounds,
+        not as a before-and-after claim.
+      </p>
+
+      <div class="stat-grid">
+        <div class="stat">
+          <b>629 s</b>
+          <span>Removed from tool time by the <code>wait_load</code> fix</span>
+        </div>
+        <div class="stat">
+          <b>2.59M</b>
+          <span>Uncached input tokens targeted by issue #10</span>
+        </div>
+        <div class="stat">
+          <b>43.2M</b>
+          <span>Cache reads in one QA round alone</span>
+        </div>
+        <div class="stat">
+          <b>1 issue</b>
+          <span>The remaining token problem is concentrated in one place</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="left">
+      <div class="kicker">09 — What still needs work</div>
+      <h2>The remaining cost is one QA prompt problem.</h2>
+      <p>
+        QA still receives generated <code>webui/dist</code> files, source maps, and
+        database artifacts in its diff. That issue is filed, scoped, and ready to fix.
+      </p>
+
+      <div class="issue">
+        Open issue:
+        <a href="https://github.com/madoo-ai/manica-dei/issues/10">manica-dei #10 — QA review prompt includes generated output and database files</a>
+      </div>
+
+      <div class="next-steps">
+        <div><b>1.</b><span>Fix issue #10 and keep only source diffs in the QA prompt.</span></div>
+        <div><b>2.</b><span>Refresh the runtime SDK in the real environment.</span></div>
+        <div><b>3.</b><span>Run one end-to-end goal and compare the same four metrics.</span></div>
+      </div>
+    </section>
+
+    <section id="ask" class="ending">
+      <div class="kicker">10 — The ask</div>
+      <h2>Approve one validation run.</h2>
+      <p>
+        One goal after issue #10 is enough to see whether the latency and token cuts hold.
+        If they do, we can then decide how much more we want to invest.
+      </p>
+      <p>
+        No large experiment yet. Fix the prompt, rerun the goal, and read the numbers.
+      </p>
+    </section>
+
+    <footer>
+      Source: build <code>0.4.28-alcides</code>, real goal dump <code>e9ccef73</code>.
+      Fixes are on <code>main</code> in <code>enuma-elis</code> and <code>manica-dei</code>.
+      Remaining work is <a href="https://github.com/madoo-ai/manica-dei/issues/10">issue #10</a>.
+    </footer>
+  </main>
+</body>
+</html>
