@@ -130,6 +130,41 @@
       width: 24%;
     }
 
+    .code-pair {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .code-card {
+      padding: 14px 16px;
+      background: #fff;
+      border-left: 3px solid var(--accent);
+    }
+
+    .code-card b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--accent-ink);
+      font-size: 13px;
+    }
+
+    pre {
+      margin: 0;
+      padding: 12px;
+      overflow: auto;
+      background: #eef1ef;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+
+    code {
+      font-family: inherit;
+    }
+
     .stats {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -282,6 +317,81 @@
           </tr>
         </tbody>
       </table>
+
+      <p class="small">
+        These snippets are illustrative, not verbatim API calls.
+      </p>
+
+      <div class="code-pair">
+        <div class="code-card">
+          <b>Native tools</b>
+          <pre><code>read_file("src/a.py")
+read_file("src/b.py")
+read_file("src/c.py")</code></pre>
+        </div>
+        <div class="code-card">
+          <b>Python code mode</b>
+          <pre><code>from agent import fs
+
+paths = ["src/a.py", "src/b.py", "src/c.py"]
+out = {p: fs.read(p, limit=80).text for p in paths}
+return out</code></pre>
+        </div>
+      </div>
+
+      <div class="code-pair">
+        <div class="code-card">
+          <b>Native tools</b>
+          <pre><code>snapshot()
+click("Save")
+snapshot()
+wait_for_text("Saved")</code></pre>
+        </div>
+        <div class="code-card">
+          <b>Python code mode</b>
+          <pre><code>from agent import browser
+
+page = browser.page()
+page.find_one(role="button", name="Save").click()
+page.wait_text("Saved")
+return {"saved": True}</code></pre>
+        </div>
+      </div>
+
+      <div class="code-pair">
+        <div class="code-card">
+          <b>Native tools</b>
+          <pre><code>run("make test")
+read_output()</code></pre>
+        </div>
+        <div class="code-card">
+          <b>Python code mode</b>
+          <pre><code>from agent import shell
+
+result = shell.run(["make", "test"])
+return {
+  "exit": result.exit,
+  "failed": [line for line in result.output.splitlines() if "FAIL" in line],
+}</code></pre>
+        </div>
+      </div>
+
+      <div class="code-pair">
+        <div class="code-card">
+          <b>Native tools</b>
+          <pre><code>edit_file(...)
+# tool fails, model asks again</code></pre>
+        </div>
+        <div class="code-card">
+          <b>Python code mode</b>
+          <pre><code>from agent import fs, AgentError
+
+try:
+    record = fs.read("missing.py")
+except AgentError as error:
+    return {"kind": error.kind, "message": error.message}</code></pre>
+        </div>
+      </div>
     </section>
 
     <section id="run">
