@@ -38,6 +38,7 @@ COMMANDS: dict[str, list[str]] = {
     "scroll": ["scroll"],
     "scrollintoview": ["scrollintoview"],
     "waitms": ["wait"],
+    "waittext": ["wait", "--text"],
     "tablist": ["tab", "list"],
     "tabnew": ["tab", "new"],
     "tabselect": ["tab", "select"],
@@ -71,7 +72,7 @@ def _args(payload: dict[str, Any]) -> list[str]:
         return [text]
     if action == "scroll":
         return [text, *([str(payload["px"])] if payload.get("px") is not None else [])]
-    if action == "waitms":
+    if action in ("waitms", "waittext"):
         return [text]
     if action == "tabselect":
         return [target]

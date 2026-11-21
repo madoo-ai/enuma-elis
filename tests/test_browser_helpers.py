@@ -11,6 +11,7 @@ from typing import Any
 from agent import browser
 from agent._errors import AgentError
 from agent._types import (
+    Link,
     Node,
     Screenshot,
     parse_console,
@@ -91,6 +92,20 @@ class ElementTest(unittest.TestCase):
                     page.find_one(role="link", name="Home")
                 self.assertEqual(caught.exception.kind, "not_found")
                 self.assertIn("button 'Save'", caught.exception.message)
+
+    def test_element_reads_like_a_dict_and_presses_keys(self) -> None:
+        host, script = _page(snapshot=TREE, focus="focused", press="pressed")
+        with host as active:
+            with active.client:
+                element = browser.page().find_one(role="textbox", name="Email")
+                self.assertEqual(element.get("name"), "Email")
+                self.assertEqual(element["ref"], "e4")
+                self.assertIsNone(element.get("missing"))
+                self.assertEqual(element.keys(), ["role", "name", "value", "ref", "nth", "full"])
+                self.assertEqual(element.press("Enter"), "pressed")
+        self.assertEqual([c["action"] for c in script.calls], ["snapshot", "focus", "press"])
+        self.assertEqual(script.calls[1]["target"], "@e4")
+        self.assertEqual(script.calls[2]["text"], "Enter")
 
     def test_inverse_state_spellings(self) -> None:
         host, _ = _page(**{
@@ -178,6 +193,56 @@ class PollingTest(unittest.TestCase):
             with active.client:
                 self.assertEqual(browser.page().wait_gone("Loading", timeout=2), "Loading")
 
+    def test_native_wait_text_failure_reports_context(self) -> None:
+        host, _ = _page(
+            waittext={"__error__": {"kind": "timeout", "message": "Wait timed out after 30000ms"}},
+            get=[json.dumps({"url": "http://x/todos"}), json.dumps({"text": "No todos yet"})],
+        )
+        with host as active:
+            with active.client:
+                with self.assertRaises(AgentError) as caught:
+                    browser.page().wait_text("Missing")
+        self.assertEqual(caught.exception.kind, "timeout")
+        self.assertIn("http://x/todos", caught.exception.message)
+        self.assertIn("No todos yet", caught.exception.message)
+
+    def test_wait_load_uses_ready_state(self) -> None:
+        host, script = _page(
+            evaluate=[json.dumps({"result": "loading"}), json.dumps({"result": "complete"})]
+        )
+        with host as active:
+            with active.client:
+                self.assertEqual(browser.page().wait_load(), "load")
+        self.assertEqual([c["script"] for c in script.calls], ["document.readyState"] * 2)
+
+    def test_wait_url_returns_when_the_current_url_already_matches(self) -> None:
+        host, script = _page(get=json.dumps({"url": "http://x/done"}))
+        with host as active:
+            with active.client:
+                self.assertEqual(browser.page().wait_url("**/done"), "http://x/done")
+        self.assertEqual([c["action"] for c in script.calls], ["get"])
+
+    def test_wait_url_reports_the_current_url_on_timeout(self) -> None:
+        host, _ = _page(get=json.dumps({"url": "http://x/dashboard"}))
+        with host as active:
+            with active.client:
+                with self.assertRaises(AgentError) as caught:
+                    browser.page().wait_url("**/todos", timeout=0.01)
+        self.assertIn("http://x/dashboard", caught.exception.message)
+        self.assertIn("**/todos", caught.exception.message)
+
+    def test_wait_for_sees_structural_nodes(self) -> None:
+        dialog = '- dialog "Settings"\n  - button "Save" [ref=e2]'
+        host, _ = _page(snapshot=dialog)
+        with host as active:
+            with active.client:
+                node = browser.page().wait_for(role="dialog", timeout=0.01)
+                self.assertIsInstance(node, Node)
+                self.assertEqual((node.role, node.name), ("dialog", "Settings"))
+                element = browser.page().wait_for(role="button", name="Save", timeout=0.01)
+                self.assertIsInstance(element, browser.Element)
+                self.assertEqual(element.ref, "e2")
+
 
 class ExtractionTest(unittest.TestCase):
     def test_table_builds_rows_from_headers(self) -> None:
@@ -207,6 +272,25 @@ class ExtractionTest(unittest.TestCase):
             with active.client:
                 self.assertEqual(browser.page().extract({"title": "h1"}), {"title": "Hi"})
         self.assertIn('{"title": "h1"}', script.calls[0]["script"])
+
+    def test_evaluate_invokes_a_bare_function(self) -> None:
+        host, script = _page(evaluate={"result": 42})
+        with host as active:
+            with active.client:
+                page = browser.page()
+                self.assertEqual(page.evaluate("() => 42"), 42)
+                self.assertEqual(page.evaluate("((spec) => spec)(7)"), 42)
+        self.assertEqual(script.calls[0]["script"], "(() => 42)()")
+        self.assertEqual(script.calls[1]["script"], "((spec) => spec)(7)")
+
+    def test_links_are_typed_and_read_like_dicts(self) -> None:
+        host, _ = _page(evaluate={"result": [{"text": "Next page", "href": "https://x/next"}]})
+        with host as active:
+            with active.client:
+                link = browser.page().links()[0]
+        self.assertIsInstance(link, Link)
+        self.assertEqual((link.text, link.name, link.href), ("Next page", "Next page", "https://x/next"))
+        self.assertEqual(link["href"], "https://x/next")
 
 
 class AuditTest(unittest.TestCase):

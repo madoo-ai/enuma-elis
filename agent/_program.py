@@ -107,7 +107,6 @@ def run_program(path: str, client: Any) -> Any:
     wrapped = not _defines_run(tree)
     if wrapped:
         tree = wrap_script(tree)
-        print("note: no Run(ctx, a) was defined, so the program body ran as Run.", file=sys.stderr)
 
     import agent
 

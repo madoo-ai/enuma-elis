@@ -12,6 +12,7 @@ before acting; ``@ref`` values expire when the page changes.
 
 from __future__ import annotations
 
+import fnmatch
 import functools
 import json
 import os
@@ -26,6 +27,7 @@ from ._errors import AgentError
 from ._types import (
     ConsoleMessage,
     Diff,
+    Link,
     Node,
     PageError,
     PageReport,
@@ -59,6 +61,44 @@ def _get_value(what: str, text: str) -> Any:
         if key in data:
             return data[key]
     return data
+
+
+_FUNCTION_EXPR = re.compile(
+    r"^\s*(?:"
+    r"(?:async\s+)?function\b"
+    r"|(?:async\s+)?[A-Za-z_$][\w$]*\s*=>"
+    r"|(?:async\s+)?\((?:[^()]|\([^()]*\))*\)\s*=>"
+    r")"
+)
+
+
+def _invoke_function(script: str) -> str:
+    """Turn a bare zero-argument function expression into an immediate call.
+
+    Playwright accepts functions in ``evaluate``. The browser CLI evaluates a
+    function expression as a value and returns ``{}``, so normalise that common
+    form before sending it.
+    """
+
+    text = script.strip()
+    candidate = text[:-1].rstrip() if text.endswith(";") else text
+    if candidate and _FUNCTION_EXPR.match(candidate):
+        return f"({candidate})()"
+    return script
+
+
+def _node_summary(pool: tuple[Node, ...] | list[Node], role: str | None = None) -> str:
+    """A short list of available nodes, useful in not-found errors."""
+
+    usable = [node for node in pool if node.ref] or list(pool)
+    without_root = [node for node in usable if node.role != "generic"]
+    usable = without_root or usable
+    if role is not None:
+        usable = sorted(usable, key=lambda node: node.role != role)
+    shown = usable[:12]
+    names = ", ".join(f"{node.role} {node.name[:80]!r}" for node in shown)
+    more = f"; +{len(usable) - len(shown)} more" if len(usable) > len(shown) else ""
+    return f"{len(usable)} nodes: {names or 'none'}{more}"
 
 
 def _recorded(method: Callable[..., Any]) -> Callable[..., Any]:
@@ -104,8 +144,30 @@ class Element:
         self.full = full
         self.ref = node.ref
 
+    _FIELDS = ("role", "name", "value", "ref", "nth", "full")
+
     def __repr__(self) -> str:
         return f"Element(role={self.role!r}, name={self.name!r}, ref={self.ref!r})"
+
+    def __getitem__(self, key: str) -> Any:
+        if key in self._FIELDS:
+            return getattr(self, key)
+        raise KeyError(f"{key!r}; Element fields: {', '.join(self._FIELDS)}")
+
+    def get(self, key: str, default: Any = None) -> Any:
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def keys(self) -> list[str]:
+        return list(self._FIELDS)
+
+    def items(self) -> list[tuple[str, Any]]:
+        return [(key, getattr(self, key)) for key in self._FIELDS]
+
+    def values(self) -> list[Any]:
+        return [getattr(self, key) for key in self._FIELDS]
 
     @property
     def target(self) -> str:
@@ -165,6 +227,15 @@ class Element:
 
     def select(self, value: str) -> str:
         return self._act("select", self.page.select, value)
+
+    def press(self, key: str) -> str:
+        """Focus this element and press a key, for example ``press("Enter")``."""
+
+        def send(target: str) -> str:
+            self.page._text("focus", target=target)
+            return self.page.press(key)
+
+        return self._act("press", send)
 
     def scroll_into_view(self) -> str:
         return self._act("scroll_into_view", self.page.scroll_into_view)
@@ -490,15 +561,44 @@ class Page:
     def wait_text(self, text: str, timeout: float = 30.0) -> str:
         """Wait until the page's visible text contains ``text``.
 
-        This polls the page text instead of using the tool's text wait, which
-        timed out on pages that plainly contained the text.
+        The native wait handles the default timeout in one browser call.
+        Custom timeouts keep the polling fallback.
         """
 
-        self.until(
-            lambda: text in str(self.get("text", "body")),
-            timeout=timeout,
-            message=f"text {text!r} did not appear within {timeout:g}s",
-        )
+        last = ""
+
+        def found() -> bool:
+            nonlocal last
+            last = str(self.get("text", "body"))
+            return text in last
+
+        def timeout_error(error: AgentError) -> AgentError:
+            try:
+                current = self.url()
+            except AgentError:
+                current = "?"
+            return AgentError(
+                "timeout",
+                f"{error.message}; current url={current!r}; text tail={last[-240:]!r}",
+            )
+
+        try:
+            if timeout == 30.0:
+                return self._text("waittext", text=text)
+            self.until(
+                found,
+                timeout=timeout,
+                message=f"text {text!r} did not appear within {timeout:g}s",
+            )
+        except AgentError as error:
+            if error.kind != "timeout":
+                raise
+            if not last:
+                try:
+                    last = str(self.get("text", "body"))
+                except AgentError:
+                    pass
+            raise timeout_error(error) from error
         return text
 
     @_recorded
@@ -530,19 +630,38 @@ class Page:
         name: str | None = None,
         contains: str | None = None,
         timeout: float = 30.0,
-        full: bool = False,
-    ) -> "Element":
-        """Wait for an element by role and name, and return its handle."""
+        full: bool = True,
+    ) -> "Element | Node":
+        """Wait for a node by role and name.
 
-        def found() -> "Element | None":
-            matches = self.find_all(role=role, name=name, contains=contains, full=full)
-            return matches[0] if matches else None
+        Interactive matches have a ref and return ``Element``. Structural
+        matches such as ``dialog`` return ``Node``; use ``wait_for(role=...)``
+        to wait for either.
+        """
 
-        return self.until(
-            found,
-            timeout=timeout,
-            message=f"no element role={role!r} name={name!r} contains={contains!r} within {timeout:g}s",
-        )
+        last: list[Node] = []
+
+        def found() -> "Element | Node | None":
+            last[:] = list(self.nodes(full=full))
+            matches = self._matching(last, role, name, contains, require_ref=False)
+            if not matches:
+                return None
+            node = matches[0]
+            return self._element(matches, 0, full) if node.ref else node
+
+        try:
+            return self.until(
+                found,
+                timeout=timeout,
+                message=f"no element role={role!r} name={name!r} contains={contains!r} within {timeout:g}s",
+            )
+        except AgentError as error:
+            if error.kind != "timeout":
+                raise
+            raise AgentError(
+                "timeout",
+                f"{error.message}; page has: {_node_summary(last, role)}",
+            ) from error
 
     def until(
         self,
@@ -559,6 +678,8 @@ class Page:
 
         deadline = time.monotonic() + timeout
         last: AgentError | None = None
+        delay = interval
+        cap = max(interval, 0.5)
         while True:
             try:
                 value = predicate()
@@ -568,20 +689,87 @@ class Page:
                 if error.kind in {"unavailable", "permission_denied", "invalid_input", "invalid_argument"}:
                     raise
                 last = error
-            if time.monotonic() >= deadline:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
                 reason = message or f"condition not met within {timeout:g}s"
                 if last is not None:
                     reason += f"; last error: {last}"
                 raise AgentError("timeout", reason)
-            time.sleep(interval)
+            time.sleep(min(delay, remaining))
+            delay = min(delay * 1.5, cap)
 
     @_recorded
-    def wait_url(self, url: str) -> str:
-        return self._text("waiturl", url=url)
+    def wait_url(self, url: str, timeout: float = 30.0) -> str:
+        """Wait until the current URL matches a glob, including queries."""
+
+        last = ""
+
+        def matched() -> str | None:
+            nonlocal last
+            last = self.url()
+            return last if fnmatch.fnmatch(last, url) else None
+
+        try:
+            return self.until(
+                matched,
+                timeout=timeout,
+                message=f"URL did not match {url!r} within {timeout:g}s",
+            )
+        except AgentError as error:
+            if error.kind != "timeout":
+                raise
+            raise AgentError(
+                "timeout",
+                f"URL {last!r} did not match {url!r} within {timeout:g}s",
+            ) from error
+
+    def wait_for_url(self, url: str, timeout: float = 30.0) -> str:
+        return self.wait_url(url, timeout)
 
     @_recorded
-    def wait_load(self, state: str = "load") -> str:
-        return self._text("waitload", text=state)
+    def wait_load(self, state: str = "load", timeout: float = 30.0) -> str:
+        """Wait for a document load state.
+
+        ``load`` and ``domcontentloaded`` use ``document.readyState`` because
+        agent-browser's ``wait --load`` reports success after a 25-second stall
+        on an already-loaded page. ``networkidle`` keeps the native wait.
+        """
+
+        if state == "networkidle":
+            return self._text("waitload", text=state)
+        if state not in ("load", "domcontentloaded"):
+            raise AgentError(
+                "invalid_argument",
+                f"load state must be 'load', 'domcontentloaded', or 'networkidle', not {state!r}",
+            )
+        last = ""
+
+        def loaded() -> str | None:
+            nonlocal last
+            ready = str(self.evaluate("document.readyState"))
+            last = ready
+            if state == "load":
+                return ready if ready == "complete" else None
+            return ready if ready in ("interactive", "complete") else None
+
+        try:
+            self.until(
+                loaded,
+                timeout=timeout,
+                interval=0.1,
+                message=f"document did not reach {state!r} within {timeout:g}s",
+            )
+        except AgentError as error:
+            if error.kind != "timeout":
+                raise
+            raise AgentError(
+                "timeout",
+                f"document readyState={last!r} did not reach {state!r} within {timeout:g}s",
+            ) from error
+        return state
+
+    def wait_for_load(self, state: str = "load", timeout: float = 30.0) -> str:
+        return self.wait_load(state, timeout)
 
     @_recorded
     def wait_function(self, script: str) -> str:
@@ -648,9 +836,13 @@ class Page:
 
     # JavaScript.
     def evaluate(self, script: str) -> Any:
-        """Run JavaScript in the page and return its value (decoded JSON)."""
+        """Run JavaScript in the page and return its value (decoded JSON).
 
-        data = _decoded(self._text("evaluate", script=script))
+        Accepts an expression or a zero-argument function; a bare function is
+        invoked before evaluation.
+        """
+
+        data = _decoded(self._text("evaluate", script=_invoke_function(script)))
         if isinstance(data, dict) and "result" in data:
             return data["result"]
         return data
@@ -670,14 +862,15 @@ class Page:
 
     def _matching(
         self,
-        pool: tuple[Node, ...],
+        pool: tuple[Node, ...] | list[Node],
         role: str | None,
         name: str | None,
         contains: str | None,
+        require_ref: bool = True,
     ) -> list[Node]:
         out = []
         for node in pool:
-            if not node.ref:
+            if require_ref and not node.ref:
                 continue
             if role is not None and node.role != role:
                 continue
@@ -722,22 +915,27 @@ class Page:
         pool = self.nodes(full=full)
         matches = self._matching(pool, role, name, contains)
         if len(matches) <= nth:
-            seen = ", ".join(f"{node.role} {node.name!r}" for node in pool if node.ref)[:400]
+            hint = "; name is exact; use contains= for a substring" if name is not None else ""
             raise AgentError(
                 "not_found",
                 f"no element role={role!r} name={name!r} contains={contains!r} (match {nth}); "
-                f"page has: {seen or 'no interactive elements'}",
+                f"page has: {_node_summary(pool, role)}{hint}",
             )
         return self._element(matches, nth, full)
 
     # Extraction: fixed scripts, so a program does not write its own JavaScript.
-    def links(self) -> list[dict[str, str]]:
-        """Every link as ``{"text", "href"}``."""
+    def links(self) -> list[Link]:
+        """Every link as ``Link(text, href, name)``."""
 
-        return self.evaluate(
+        rows = self.evaluate(
             "[...document.querySelectorAll('a[href]')]"
             ".map(a => ({text: a.innerText.trim(), href: a.href}))"
         )
+        return [
+            Link(text=str(row.get("text", "")), href=str(row.get("href", "")))
+            for row in rows
+            if isinstance(row, dict)
+        ]
 
     def headings(self) -> list[dict[str, Any]]:
         """Every heading as ``{"level", "text"}``."""
@@ -885,7 +1083,7 @@ def page() -> Page:
     return Page()
 
 
-__all__ = ["Element", "Page", "ScratchPage", "Screenshot", "page", "scratch"]
+__all__ = ["Element", "Link", "Page", "ScratchPage", "Screenshot", "page", "scratch"]
 
 
 def __dir__() -> list[str]:

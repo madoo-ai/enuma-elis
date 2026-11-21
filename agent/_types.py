@@ -620,6 +620,20 @@ class Node(_Result):
 
 
 @dataclass(frozen=True)
+class Link(_Result):
+    """One anchor: ``text``/``name`` and absolute ``href``."""
+
+    text: str
+    href: str
+
+    @property
+    def name(self) -> str:
+        """The anchor text under the accessibility-style name."""
+
+        return self.text
+
+
+@dataclass(frozen=True)
 class ConsoleMessage(_Result):
     type: str
     text: str

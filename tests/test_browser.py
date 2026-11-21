@@ -103,7 +103,6 @@ class BrowserPageTest(unittest.TestCase):
                 page.scroll("down", 500)
                 page.keyboard_insert("typed")
                 page.wait_text("Saved")
-                page.wait_url("**/done")
                 page.wait_load("networkidle")
                 page.wait_function("window.ready")
                 page.wait_state("#spinner", "hidden")
@@ -119,31 +118,30 @@ class BrowserPageTest(unittest.TestCase):
             )
             self.assertEqual(host.calls[2], ("browser.call", {"action": "scroll", "text": "down", "px": 500}))
             self.assertEqual(host.calls[3], ("browser.call", {"action": "keyboardinsert", "text": "typed"}))
-            self.assertEqual(host.calls[4], ("browser.call", {"action": "get", "what": "text", "target": "body"}))
-            self.assertEqual(host.calls[5], ("browser.call", {"action": "waiturl", "url": "**/done"}))
-            self.assertEqual(host.calls[6], ("browser.call", {"action": "waitload", "text": "networkidle"}))
+            self.assertEqual(host.calls[4], ("browser.call", {"action": "waittext", "text": "Saved"}))
+            self.assertEqual(host.calls[5], ("browser.call", {"action": "waitload", "text": "networkidle"}))
             self.assertEqual(
-                host.calls[7],
+                host.calls[6],
                 ("browser.call", {"action": "waitfn", "script": "window.ready"}),
             )
             self.assertEqual(
-                host.calls[8],
+                host.calls[7],
                 ("browser.call", {"action": "waitstate", "target": "#spinner", "text": "hidden"}),
             )
             self.assertEqual(
-                host.calls[9],
+                host.calls[8],
                 ("browser.call", {"action": "waitdownload", "text": "/tmp/report.pdf"}),
             )
             self.assertEqual(
-                host.calls[10],
+                host.calls[9],
                 ("browser.call", {"action": "mouse", "what": "move", "text": "100 200"}),
             )
             self.assertEqual(
-                host.calls[11],
+                host.calls[10],
                 ("browser.call", {"action": "mouse", "what": "down", "text": "left"}),
             )
             self.assertEqual(
-                host.calls[12],
+                host.calls[11],
                 ("browser.call", {"action": "mouse", "what": "wheel", "text": "120 0"}),
             )
 

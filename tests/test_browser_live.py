@@ -9,11 +9,13 @@ from __future__ import annotations
 import os
 import shutil
 import tempfile
+import time
 import unittest
 import urllib.parse
 
 from agent import browser
 from agent._errors import AgentError
+from agent._types import Node
 from fake_host import FakeHost
 
 LIVE = os.environ.get("AGENT_BROWSER_LIVE") == "1" and shutil.which("agent-browser")
@@ -109,6 +111,7 @@ class LiveBrowserTest(unittest.TestCase):
     def test_extraction(self) -> None:
         links = self.page.links()
         self.assertEqual(links[0]["text"], "Next page")
+        self.assertEqual((links[0].name, links[0].href.endswith("/next")), ("Next page", True))
         self.assertEqual([h["text"] for h in self.page.headings()], ["Hello", "Sub"])
         self.assertEqual(self.page.table("#t"), [{"Name": "apple", "Qty": "3"}, {"Name": "pear", "Qty": "5"}])
         forms = self.page.forms()
@@ -123,6 +126,9 @@ class LiveBrowserTest(unittest.TestCase):
     def test_evaluate_returns_values(self) -> None:
         self.assertEqual(self.page.evaluate("1 + 1"), 2)
         self.assertEqual(self.page.evaluate("({a: [1, 2]})"), {"a": [1, 2]})
+        self.assertEqual(self.page.evaluate("() => 42"), 42)
+        self.page.evaluate("() => { window.__touched = 'yes' }")
+        self.assertEqual(self.page.evaluate("window.__touched"), "yes")
         self.assertEqual(self.page.title(), "Live Page")
 
     def test_wait_helpers(self) -> None:
@@ -132,6 +138,23 @@ class LiveBrowserTest(unittest.TestCase):
         self.assertEqual(caught.exception.kind, "timeout")
         element = self.page.wait_for(role="textbox", name="Email", timeout=5)
         self.assertEqual(element.role, "textbox")
+
+    def test_wait_load_and_url_do_not_stall_or_race(self) -> None:
+        started = time.monotonic()
+        self.assertEqual(self.page.wait_load(), "load")
+        self.assertLess(time.monotonic() - started, 2)
+        self.assertTrue(self.page.wait_url("data:*", timeout=2).startswith("data:"))
+
+    def test_wait_for_structural_dialog(self) -> None:
+        dialog = "data:text/html," + urllib.parse.quote(
+            '<dialog open aria-label="Settings"><button>Save</button></dialog>'
+        )
+        self.page.goto(dialog)
+        node = self.page.wait_for(role="dialog", timeout=2)
+        self.assertIsInstance(node, Node)
+        self.assertEqual((node.role, node.name), ("dialog", "Settings"))
+        self.page.goto(URL)
+        self.page.wait_text("Hello")
 
     def test_screenshot_save_and_history(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
