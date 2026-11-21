@@ -101,27 +101,74 @@
       line-height: 1.5;
     }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 26px;
-      font-size: 15px;
+    .small {
+      font-size: 14px;
+      color: var(--muted);
     }
 
-    th, td {
-      text-align: left;
-      padding: 12px 14px;
-      border-bottom: 1px solid var(--line);
-      vertical-align: top;
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 28px 44px;
+      margin-top: 30px;
     }
 
-    th {
-      color: var(--accent-ink);
-      font-weight: 750;
-      font-size: 13px;
+    .stat {
+      padding-left: 16px;
+      border-left: 3px solid var(--accent);
     }
 
-    td:first-child { width: 24%; }
+    .stat b {
+      display: block;
+      font-size: clamp(30px, 4vw, 44px);
+      line-height: 1;
+      letter-spacing: -0.03em;
+    }
+
+    .stat span {
+      display: block;
+      margin-top: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .bars {
+      margin-top: 30px;
+      display: grid;
+      gap: 18px;
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 190px 1fr;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .bar-label {
+      font-size: 14px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .bar-track {
+      position: relative;
+      height: 16px;
+      background: #e3e6e4;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: var(--accent);
+    }
+
+    .bar-value {
+      margin-left: 12px;
+      font-size: 14px;
+      font-weight: 650;
+    }
 
     .expect {
       margin-top: 30px;
@@ -181,7 +228,14 @@
     }
 
     @media (max-width: 760px) {
-      .expect { grid-template-columns: 1fr; }
+      .stats,
+      .expect,
+      .bar-row {
+        grid-template-columns: 1fr;
+      }
+
+      .bar-row { gap: 8px; }
+      .bar-value { margin-left: 0; }
       section { padding: 42px 0 32px; }
     }
 
@@ -207,142 +261,109 @@
       <div class="kicker">01 — Pitch</div>
       <h1>Python code mode vs native tools</h1>
       <p class="lead">
-        What we expect to change, what one real run already showed, and what the rerun will measure once it finishes.
+        What we expect to change, what the latest rerun already shows, and what we still need to measure.
       </p>
     </section>
 
-    <section id="short">
-      <div class="kicker">02 — The short version</div>
-      <h2>Native tools make every small step a round trip.</h2>
+    <section id="claim">
+      <div class="kicker">02 — The claim</div>
+      <h2>Native tools spend a model turn on every small step.</h2>
       <p>
-        Code mode lets the model put the routine work in one program and return one result.
-        That should mean fewer turns, less context, and fewer browser calls.
+        Code mode lets the model put several reads, one wait, and one check into a single program.
+        The program then returns only the result the model needs.
       </p>
       <p>
-        The current rerun is with the browser and output fixes already in place.
-        We are not comparing against the old version that stalled.
+        That should mean fewer turns, fewer child calls, and less context.
       </p>
     </section>
 
-    <section id="shape">
-      <div class="kicker">03 — Same work, different shape</div>
-      <h2>What changes in practice</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Task</th>
-            <th>Native tools</th>
-            <th>Python code mode</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Read three files</td>
-            <td>Three separate model turns.</td>
-            <td>One program, one return.</td>
-          </tr>
-          <tr>
-            <td>Wait for a page</td>
-            <td>Repeated polls, each a new call.</td>
-            <td>One wait, then continue.</td>
-          </tr>
-          <tr>
-            <td>Check a condition</td>
-            <td>Model sees the full output.</td>
-            <td>Program returns only the value it needs.</td>
-          </tr>
-          <tr>
-            <td>Report a failure</td>
-            <td>Each tool error arrives separately.</td>
-            <td>One program reports one trace.</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section id="baseline">
-      <div class="kicker">04 — What the last run already showed</div>
-      <h2>One real run put numbers on the old cost.</h2>
+    <section id="rerun">
+      <div class="kicker">03 — The latest rerun</div>
+      <h2>The direction is already visible.</h2>
       <p>
-        This was the code-mode run before the fixes, not a native-tools comparison.
-        It finished, but the time and tokens concentrated in a few places we can now measure.
+        The latest run used the fixed fork and finished in two QA rounds.
+        It is not a native-tools comparison, and it used a different template from the earlier run.
+        Treat it as direction, not as a benchmark.
       </p>
 
-      <div class="stat-grid">
-        <div class="stat"><b>572</b><span>Python programs</span></div>
-        <div class="stat"><b>2,101</b><span>Child tool calls</span></div>
-        <div class="stat"><b>71.9 min</b><span>Total goal span</span></div>
-        <div class="stat"><b>3.6M</b><span>Uncached input tokens</span></div>
-        <div class="stat"><b>629 s</b><span>Lost to <code>wait_load</code></span></div>
-        <div class="stat"><b>93</b><span>Outputs truncated silently</span></div>
+      <div class="stats">
+        <div class="stat"><b>226</b><span>Python programs, down from 572</span></div>
+        <div class="stat"><b>1,011</b><span>Child tool calls, down from 2,101</span></div>
+        <div class="stat"><b>36.5 min</b><span>Active time, down from 71.2 min</span></div>
+        <div class="stat"><b>479k</b><span>Uncached input tokens, down from 3.6M</span></div>
+        <div class="stat"><b>7</b><span>Truncated outputs, down from 93</span></div>
+        <div class="stat"><b>0</b><span>25-second <code>wait_load</code> stalls, down from 25</span></div>
+      </div>
+
+      <div class="bars">
+        <div class="bar-row">
+          <div class="bar-label">Programs</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 61%"></div></div>
+          <div class="bar-value">61% fewer</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Child calls</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 52%"></div></div>
+          <div class="bar-value">52% fewer</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Active time</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 49%"></div></div>
+          <div class="bar-value">49% less</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">Uncached input</div>
+          <div class="bar-track"><div class="bar-fill" style="width: 87%"></div></div>
+          <div class="bar-value">87% less</div>
+        </div>
       </div>
 
       <div class="callout">
-        One QA prompt alone carried 2.59M uncached tokens from generated build output,
-        and one QA round accumulated 43.2M cached-read tokens.
-        Nine polling programs made 671 browser calls, and all nine failed.
+        Print truncation dropped from 93 programs to 7.
+        The <code>wait_load</code> stall did not appear in this run.
       </div>
-      <p>
-        The model spent 45.9 minutes thinking; the tools took 25.3 minutes.
-      </p>
     </section>
 
     <section id="expect">
-      <div class="kicker">05 — What we expect</div>
-      <h2>The direction we’re looking for</h2>
+      <div class="kicker">04 — What we expect against native tools</div>
+      <h2>The same work should cost fewer turns and less context.</h2>
       <div class="expect">
         <div><b>Fewer model turns</b><span>One program can replace several tool calls.</span></div>
-        <div><b>Fewer child calls</b><span>Waits and reads can batch instead of repeating.</span></div>
-        <div><b>Less uncached input</b><span>The program can return excerpts, not whole files.</span></div>
+        <div><b>Fewer child calls</b><span>Reads and waits can batch instead of repeating.</span></div>
+        <div><b>Less uncached input</b><span>A program can return an excerpt, not a whole file.</span></div>
         <div><b>Fewer repeated reads</b><span>State can stay inside one program when it belongs together.</span></div>
         <div><b>Shorter failure paths</b><span>One program reports the line and the result together.</span></div>
         <div><b>Clearer evidence</b><span>The model can compute a check and return the value it proved.</span></div>
       </div>
-      <div class="callout">
-        These are expectations, not results. The old run pointed at browser polling, hidden truncation, and generated QA diffs as the first places to look.
-      </div>
     </section>
 
-    <section id="why-now">
-      <div class="kicker">06 — Why the rerun is worth doing now</div>
-      <h2>The old code mode had three obvious leaks. We fixed them.</h2>
-      <p>
-        Browser waits now check the page state instead of polling.
-        Print output reports what it omitted.
-        Missing paths return a clear error instead of searching the parent directory.
-      </p>
-      <p>
-        The comparison now uses the corrected version, not the one that stalled.
-        The rerun should show whether the 629 seconds and the 93 hidden truncations disappear.
-      </p>
-    </section>
-
-    <section id="wont-fix">
-      <div class="kicker">07 — What it won’t fix</div>
-      <h2>One known cost stays outside code mode.</h2>
+    <section id="caveat">
+      <div class="kicker">05 — What still needs to happen</div>
+      <h2>One deployment step is still missing.</h2>
       <div class="caveat">
-        The QA prompt still carries generated build output. That is issue #10.
-        Code mode won’t shrink that. It also won’t remove the model’s own thinking time.
+        The latest dump still shows <code>wait_url(timeout=...)</code> and bare-function
+        <code>evaluate()</code> failing, which means the browser SDK in the runtime has not been refreshed.
+        The fork-side output fixes are active, but the browser fixes are not yet fully in play.
       </div>
       <p>
-        If the rerun still shows high tokens, that is where to look next.
+        Issue #10 also remains open: generated build output can still reach the QA prompt.
       </p>
     </section>
 
     <section id="ask" class="ending">
-      <div class="kicker">08 — The ask</div>
-      <h2>One rerun, then compare.</h2>
+      <div class="kicker">06 — The ask</div>
+      <h2>Refresh the runtime, then run one controlled comparison.</h2>
       <p>
-        Let the current run finish. Then compare it with native tools on the same goal and the same model.
-      </p>
-      <p>
-        If code mode wins on turns, tokens, and time, we keep going.
+        Give us one run against native tools on the same goal and the same model.
+        If code mode still wins on turns, tokens, and time, we keep going.
         If it doesn’t, we stop and say so.
       </p>
     </section>
 
     <footer>
-      Rerun in progress. The numbers above come from the pre-fix code-mode run, not a native-tools comparison. The rerun will provide that.
+      Latest rerun: 226 programs, 1,011 child calls, 36.5 active minutes, 479k uncached input tokens.
+      Previous run: 572 programs, 2,101 child calls, 71.2 active minutes, 3.6M uncached input tokens.
+      The two runs used different templates, so treat the comparison as directional.
     </footer>
   </main>
 </body>
