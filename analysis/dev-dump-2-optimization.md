@@ -438,6 +438,9 @@ Implemented on 2026-11-21:
   `printOmittedChars`.
 - The catalog documents the print policy, structural waits, URL queries,
   function evaluation, exact names, and separate stdlib imports.
+- The catalog teaches batched exploration: independent files are read in one
+  program, each result is a keyed excerpt, and unchanged files are not read
+  again.
 - `fs.grep` reports a missing path as `File not found` instead of invoking
   ripgrep with the parent directory.
 
