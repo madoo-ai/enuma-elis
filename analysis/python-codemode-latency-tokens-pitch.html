@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Python code mode: fewer turns, fewer tokens</title>
+  <title>Python code mode: a report on fewer turns and fewer tokens</title>
   <style>
     :root {
       --paper: #f7f8f7;
@@ -22,7 +22,7 @@
       background: var(--paper);
       color: var(--ink);
       font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.55;
+      line-height: 1.58;
       -webkit-font-smoothing: antialiased;
     }
 
@@ -50,26 +50,8 @@
     header span { color: var(--muted); font-size: 13px; }
 
     section {
-      scroll-snap-align: start;
-      padding: 56px 0 40px;
+      padding: 54px 0 40px;
       border-bottom: 1px solid var(--line);
-    }
-
-    .kicker {
-      display: flex;
-      gap: 12px;
-      align-items: baseline;
-      margin-bottom: 10px;
-      color: var(--accent-ink);
-      font-size: 13px;
-      font-weight: 750;
-    }
-
-    .kicker::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: var(--line);
     }
 
     h1 {
@@ -105,6 +87,26 @@
       color: var(--muted);
     }
 
+    .expect {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px 32px;
+    }
+
+    .expect div {
+      padding-left: 14px;
+      border-left: 3px solid var(--accent);
+      font-size: 15px;
+    }
+
+    .expect b {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--accent-ink);
+      font-size: 15px;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -126,44 +128,7 @@
       font-size: 13px;
     }
 
-    td:first-child {
-      width: 24%;
-    }
-
-    .code-pair {
-      margin-top: 22px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 20px;
-    }
-
-    .code-card {
-      padding: 14px 16px;
-      background: #fff;
-      border-left: 3px solid var(--accent);
-    }
-
-    .code-card b {
-      display: block;
-      margin-bottom: 8px;
-      color: var(--accent-ink);
-      font-size: 13px;
-    }
-
-    pre {
-      margin: 0;
-      padding: 12px;
-      overflow: auto;
-      background: #eef1ef;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-      font-size: 13px;
-      line-height: 1.45;
-      white-space: pre;
-    }
-
-    code {
-      font-family: inherit;
-    }
+    td:first-child { width: 22%; }
 
     .stats {
       display: grid;
@@ -212,6 +177,15 @@
       font-size: 18px;
     }
 
+    .callout {
+      margin-top: 26px;
+      padding: 16px 18px;
+      border-left: 4px solid var(--accent);
+      background: #eef3f1;
+      font-size: 16px;
+      max-width: 78ch;
+    }
+
     .caveat {
       margin-top: 26px;
       padding: 16px 18px;
@@ -219,6 +193,41 @@
       background: #f5eee9;
       font-size: 15px;
       max-width: 78ch;
+    }
+
+    .code-pair {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 20px;
+    }
+
+    .code-card {
+      padding: 14px 16px;
+      background: #fff;
+      border-left: 3px solid var(--accent);
+    }
+
+    .code-card b {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--accent-ink);
+      font-size: 13px;
+    }
+
+    pre {
+      margin: 0;
+      padding: 12px;
+      overflow: auto;
+      background: #eef1ef;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre;
+    }
+
+    code {
+      font-family: inherit;
     }
 
     .ending { border-bottom: 0; padding-bottom: 24px; }
@@ -234,9 +243,12 @@
 
     @media (max-width: 760px) {
       .stats,
-      .ratio {
+      .ratio,
+      .expect,
+      .code-pair {
         grid-template-columns: 1fr;
       }
+
       section { padding: 42px 0 32px; }
     }
 
@@ -255,37 +267,30 @@
   <main>
     <header>
       <strong>Python code mode</strong>
-      <span>An experiment in fewer turns and fewer tokens</span>
+      <span>A report on fewer turns and fewer tokens</span>
     </header>
 
-    <section id="title">
-      <div class="kicker">01 — What we’re doing</div>
+    <section id="summary">
       <h1>Python code mode: fewer turns, fewer tokens</h1>
       <p class="lead">
-        This repo is an experiment in replacing a burst of native tool calls with one Python program.
-        The model writes a program, the program does the routine work, and the model gets one result back.
+        This repo tests one idea. Let the model write a Python program instead of making a long line of native tool calls.
+        The program calls the same tools, does the routine work, and returns one short result.
       </p>
       <p>
-        That should cut model turns, cut context, and save time.
-        The latest run already shows the direction.
-      </p>
-    </section>
-
-    <section id="why">
-      <div class="kicker">02 — Why it should help</div>
-      <h2>Native tools make the model ask for every piece separately.</h2>
-      <p>
-        One program can read several files, wait once, compute a check, and return only the value the model needs.
-        Native tools would turn those same steps into separate model turns.
-      </p>
-      <p>
-        Fewer turns mean less context, fewer round trips, and less waiting.
+        The old surface made the model ask for each piece separately. The new surface lets it put the whole check in one program.
+        The latest run already shows the direction: fewer model turns, less context, and less waiting.
       </p>
     </section>
 
     <section id="why-python">
-      <div class="kicker">03 — Why Python</div>
-      <h2>Python is the shortest path from intent to result.</h2>
+      <h2>Why Python</h2>
+      <p>
+        Python is the shortest path from intent to result.
+        The model already knows the language, so there is no new DSL to teach.
+        A program reads like the work: loops, conditions, and local state fit naturally.
+        When something breaks, one stack trace names the line.
+      </p>
+
       <div class="expect">
         <div><b>No new DSL</b><span>The model already knows Python.</span></div>
         <div><b>Readable</b><span>Programs are easy to inspect and debug.</span></div>
@@ -295,8 +300,13 @@
     </section>
 
     <section id="why-code-mode">
-      <div class="kicker">04 — Why code mode</div>
-      <h2>One program replaces a burst of tool calls.</h2>
+      <h2>Why code mode</h2>
+      <p>
+        Native tools turn every small step into a model turn.
+        One program can read several files, wait once, compute a check, and return only the value the model needs.
+        Fewer turns mean less context, fewer round trips, and less waiting.
+      </p>
+
       <div class="expect">
         <div><b>Fewer turns</b><span>Several tool calls become one model turn.</span></div>
         <div><b>Less context</b><span>The program returns one short result.</span></div>
@@ -306,8 +316,13 @@
     </section>
 
     <section id="surface">
-      <div class="kicker">05 — The tool surface we target</div>
-      <h2>The same tools the model already uses, wrapped in Python.</h2>
+      <h2>The tool surface we target</h2>
+      <p>
+        We are not targeting arbitrary Python execution.
+        We target the same tool surface the agent already uses, wrapped in typed Python modules.
+        That keeps the experiment narrow and auditable.
+      </p>
+
       <table>
         <thead>
           <tr>
@@ -339,49 +354,87 @@
           </tr>
         </tbody>
       </table>
-      <p class="small">
-        We are not targeting arbitrary Python execution.
-        We target the existing tool surface the agent already uses.
+    </section>
+
+    <section id="baseline">
+      <h2>What the old surface looked like</h2>
+      <p>
+        The baseline was a serial shell user, not a parallel tool caller.
+        In one long session, the agent made 1,613 tool calls.
+        Almost every step used exactly one call, and most of those calls were shell.
+        That session spent 84.2% of its cache-read tokens on shell steps and ran for 33.6 hours.
+      </p>
+
+      <div class="stats">
+        <div class="stat"><b>1,613</b><span>Tool calls in one long session</span></div>
+        <div class="stat"><b>99%</b><span>Steps used exactly one tool call</span></div>
+        <div class="stat"><b>79.9%</b><span>Of those calls were shell</span></div>
+        <div class="stat"><b>84.2%</b><span>Cache-read tokens went to shell steps</span></div>
+        <div class="stat"><b>81.4%</b><span>Shell calls started with <code>cd</code></span></div>
+        <div class="stat"><b>33.6 h</b><span>Wall clock for that one session</span></div>
+      </div>
+
+      <div class="callout">
+        The same session used 2.29M input tokens and 806M cache-read tokens.
+        Thirty runs of 10 or more shell calls held 81% of all shell calls.
+      </div>
+    </section>
+
+    <section id="rerun">
+      <h2>What the latest run shows</h2>
+      <p>
+        The latest run moved the other way.
+        It used 226 Python programs and 1,011 child tool calls.
+        Active time was 36.5 minutes, and uncached input was 479k tokens.
+        Only seven outputs were truncated, and the old 25-second browser stall did not appear.
+      </p>
+
+      <div class="stats">
+        <div class="stat"><b>226</b><span>Python programs</span></div>
+        <div class="stat"><b>1,011</b><span>Child tool calls</span></div>
+        <div class="stat"><b>36.5 min</b><span>Active time</span></div>
+        <div class="stat"><b>479k</b><span>Uncached input tokens</span></div>
+        <div class="stat"><b>7</b><span>Truncated outputs</span></div>
+        <div class="stat"><b>0</b><span>25-second browser stalls</span></div>
+      </div>
+
+      <div class="ratio">
+        <div>
+          <b>About 4.5× fewer model turns</b>
+          <span>
+            226 programs did the work of 1,011 native tool calls.
+            An equivalent native-tools run would need roughly 4.5× more model turns.
+          </span>
+        </div>
+        <div>
+          <b>Several times less token cost</b>
+          <span>
+            Each extra turn carries context again.
+            Code mode returned short results instead of full tool output, which kept uncached input at 479k tokens.
+          </span>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-to-read">
+      <h2>How to read the numbers</h2>
+      <p>
+        These numbers do not come from the same task.
+        The baseline is one long native-tools session. The rerun is one fixed code-mode goal.
+        They show the shape of the problem and the shape of the fix, not a controlled delta.
+      </p>
+      <p>
+        The direction is still clear.
+        One program replaced about four native tool calls on average.
+        Active time stayed under 37 minutes, and uncached input stayed under 500k tokens.
       </p>
     </section>
 
     <section id="examples">
-      <div class="kicker">06 — What changes in practice</div>
-      <h2>Four examples show the difference.</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Task</th>
-            <th>Native tools</th>
-            <th>Python code mode</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Read three files</td>
-            <td>Three separate calls, three separate turns.</td>
-            <td>One program reads all three and returns one summary.</td>
-          </tr>
-          <tr>
-            <td>Wait for a dialog</td>
-            <td>The model polls the page again and again.</td>
-            <td>One wait runs until the page is ready.</td>
-          </tr>
-          <tr>
-            <td>Check a test result</td>
-            <td>The model reads the full output and decides.</td>
-            <td>The program parses the result and returns pass or fail.</td>
-          </tr>
-          <tr>
-            <td>Recover from an error</td>
-            <td>The model sees one error and starts over.</td>
-            <td>The program catches the error and returns one trace.</td>
-          </tr>
-        </tbody>
-      </table>
-
-      <p class="small">
-        These snippets are illustrative, not verbatim API calls.
+      <h2>What this looks like in code</h2>
+      <p>
+        The difference is easiest to see in the two shapes below.
+        Native tools ask for each piece separately. Code mode puts the whole check in one program.
       </p>
 
       <div class="code-pair">
@@ -420,118 +473,13 @@ return {"saved": True}</code></pre>
         </div>
       </div>
 
-      <div class="code-pair">
-        <div class="code-card">
-          <b>Native tools</b>
-          <pre><code>run("make test")
-read_output()</code></pre>
-        </div>
-        <div class="code-card">
-          <b>Python code mode</b>
-          <pre><code>from agent import shell
-
-result = shell.run(["make", "test"])
-return {
-  "exit": result.exit,
-  "failed": [line for line in result.output.splitlines() if "FAIL" in line],
-}</code></pre>
-        </div>
-      </div>
-
-      <div class="code-pair">
-        <div class="code-card">
-          <b>Native tools</b>
-          <pre><code>edit_file(...)
-# tool fails, model asks again</code></pre>
-        </div>
-        <div class="code-card">
-          <b>Python code mode</b>
-          <pre><code>from agent import fs, AgentError
-
-try:
-    record = fs.read("missing.py")
-except AgentError as error:
-    return {"kind": error.kind, "message": error.message}</code></pre>
-        </div>
-      </div>
-    </section>
-
-    <section id="baseline">
-      <div class="kicker">07 — What the old surface looked like</div>
-      <h2>The old baseline was a serial shell user.</h2>
-
-      <div class="stats">
-        <div class="stat"><b>1,613</b><span>Tool calls in one long session</span></div>
-        <div class="stat"><b>99%</b><span>Steps used exactly one tool call</span></div>
-        <div class="stat"><b>79.9%</b><span>Of those calls were shell</span></div>
-        <div class="stat"><b>84.2%</b><span>Cache-read tokens went to shell steps</span></div>
-        <div class="stat"><b>81.4%</b><span>Shell calls started with <code>cd</code></span></div>
-        <div class="stat"><b>33.6 h</b><span>Wall clock for that one session</span></div>
-      </div>
-
-      <div class="callout">
-        The same session used 2.29M input tokens and 806M cache-read tokens.
-        Thirty runs of 10 or more shell calls held 81% of all shell calls.
-      </div>
-
       <p class="small">
-        Source: one long native-tools session, not a corpus.
+        These snippets are illustrative, not verbatim API calls.
       </p>
     </section>
 
-    <section id="run">
-      <div class="kicker">08 — What the latest run shows</div>
-      <h2>The latest run already moved in that direction.</h2>
-
-      <div class="stats">
-        <div class="stat"><b>226</b><span>Python programs</span></div>
-        <div class="stat"><b>1,011</b><span>Child tool calls</span></div>
-        <div class="stat"><b>36.5 min</b><span>Active time</span></div>
-        <div class="stat"><b>479k</b><span>Uncached input tokens</span></div>
-        <div class="stat"><b>7</b><span>Truncated outputs</span></div>
-        <div class="stat"><b>0</b><span>25-second browser stalls</span></div>
-      </div>
-
-      <div class="ratio">
-        <div>
-          <b>About 4.5× fewer model turns</b>
-          <span>
-            226 programs did the work of 1,011 native tool calls.
-            An equivalent native-tools run would need roughly 4.5× more model turns.
-          </span>
-        </div>
-        <div>
-          <b>Several times less token cost</b>
-          <span>
-            Each extra turn carries context again.
-            Code mode returned short results instead of full tool output, which kept uncached input at 479k tokens.
-            An equivalent native-tools run would carry more context and more tokens.
-          </span>
-        </div>
-      </div>
-    </section>
-
-    <section id="evidence">
-      <div class="kicker">09 — How the numbers back it up</div>
-      <h2>The run is small, but the direction is clear.</h2>
-      <p>
-        One program replaced about four native tool calls on average.
-        Active time stayed under 37 minutes.
-        Uncached input stayed under 500k tokens.
-        Only seven outputs were truncated, and the old 25-second browser stall did not appear.
-      </p>
-      <p>
-        Against a baseline that spent 84.2% of cache-read tokens on shell steps,
-        this run kept the same work inside 36.5 active minutes.
-      </p>
-      <p>
-        An equivalent native-tools run would incur more turns and more tokens for the same work.
-      </p>
-    </section>
-
-    <section id="caveat" class="ending">
-      <div class="kicker">10 — What we’re not claiming yet</div>
-      <h2>This is an experiment, not a benchmark.</h2>
+    <section id="limits" class="ending">
+      <h2>What we are not claiming</h2>
       <div class="caveat">
         We have one clean run, not a controlled native-tools comparison.
         The numbers show what a fixed code-mode run costs today.
@@ -540,9 +488,8 @@ except AgentError as error:
     </section>
 
     <footer>
-      Latest run: 226 programs, 1,011 child calls, 36.5 active minutes, 479k uncached input tokens.
-      One program replaced about four native tool calls on average.
       Baseline source: one long native-tools session recorded in <code>tool-call-stats.md</code>.
+      Latest run: 226 programs, 1,011 child calls, 36.5 active minutes, 479k uncached input tokens.
     </footer>
   </main>
 </body>
